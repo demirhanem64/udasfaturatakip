@@ -1,15 +1,13 @@
-name: Otomatik Fiyat Güncelleme ve Yayınlama
+name: UDAŞ Fiyat Güncelleme Robotu
 
 on:
   push:
     branches: [ main ]
   schedule:
-    - cron: '0 3 * * *' # Her gece 03:00'te çalışır (UTC)
+    - cron: '0 3 * * *' # Her gece 03:00'te çalışır
 
 permissions:
   contents: write
-  pages: write
-  id-token: write
 
 jobs:
   update-prices:
@@ -18,28 +16,21 @@ jobs:
       - uses: actions/checkout@v3
       
       - name: Python Kurulumu
-        uses: actions/setup-node@v3 # Python için setup-python kullanılmalı ama node yüklü kalsın
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.9'
       
-      - name: Python Bağımlılıkları
+      - name: Kütüphaneleri Yükle
         run: |
           pip install requests beautifulsoup4
           
       - name: Fiyatları Tara ve Güncelle
         run: python scraper.py
         
-      - name: Değişiklikleri Kaydet ve Push Yap
+      - name: Değişiklikleri Kaydet
         run: |
           git config --global user.name 'UDAŞ Robotu'
           git config --global user.email 'robot@udasfaturatakip.com'
           git add index.html
           git diff --quiet && git diff --staged --quiet || git commit -m "UDAŞ Fiyatları Otomatik Güncellendi"
           git push origin main || echo "Değişiklik yok"
-
-  deploy:
-    needs: update-prices
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - name: Deploy to GitHub Pages
-        uses: actions/deploy-pages@v1
-        if: always()
