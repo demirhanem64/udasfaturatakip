@@ -22,12 +22,12 @@ import { AYLIK_LIMITLER, KDV_ORANI, AY_ISIMLERI } from './constants';
 
 function App() {
   const [limits, setLimits] = useState(() => {
-    const saved = localStorage.getItem('udas_limits_v2'); 
+    const saved = localStorage.getItem('udas_limits_v3'); 
     return saved ? JSON.parse(saved) : AYLIK_LIMITLER;
   });
 
   const [inputs, setInputs] = useState(() => {
-    const saved = localStorage.getItem('udas_inputs');
+    const saved = localStorage.getItem('udas_inputs_v3');
     if (saved) return JSON.parse(saved);
     
     return {
@@ -41,8 +41,8 @@ function App() {
   const [isLimitsOpen, setIsLimitsOpen] = useState(false);
   const [isEditingLimits, setIsEditingLimits] = useState(false);
 
-  useEffect(() => { localStorage.setItem('udas_limits_v2', JSON.stringify(limits)); }, [limits]);
-  useEffect(() => { localStorage.setItem('udas_inputs', JSON.stringify(inputs)); }, [inputs]);
+  useEffect(() => { localStorage.setItem('udas_limits_v3', JSON.stringify(limits)); }, [limits]);
+  useEffect(() => { localStorage.setItem('udas_inputs_v3', JSON.stringify(inputs)); }, [inputs]);
 
   const results = useMemo(() => {
     if (!inputs.startDate || !inputs.endDate || inputs.startIndex === '' || inputs.endIndex === '') return null;
