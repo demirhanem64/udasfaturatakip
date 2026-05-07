@@ -15,84 +15,84 @@ def get_latest_prices():
         
         extracted_data = {} # {month_idx: {'k1': price, 'k2': price}}
         
-        # Sayfadaki tüm başlıkları ve tabloları bul
-        sections = soup.find_all(['h1', 'h2', 'h3', 'h4', 'strong', 'p'])
+        # Sayfadaki her KADEME bölümünü ayrı ayrı işle
+        # UDAŞ sitesinde KADEME 1 ve KADEME 2 genellikle ayrı başlıklardır
+        tables = soup.find_all('table')
         
-        current_kademe = None
-        for element in soup.find_all(True): # Tüm elementleri sırayla gez
-            text = element.get_text(strip=True).upper()
+        for table in tables:
+            # Tablonun üstündeki başlığa bakarak K1 mi K2 mi olduğunu anla
+            prev_text = ""
+            for sibling in table.find_previous_siblings(['h1','h2','h3','h4','p','strong']):
+                prev_text = sibling.get_text(strip=True).upper()
+                if "KADEME" in prev_text:
+                    break
             
-            if "KADEME 1" in text:
-                current_kademe = "k1"
-            elif "KADEME 2" in text:
-                current_kademe = "k2"
-                
-            if element.name == 'table' and current_kademe:
-                rows = element.find_all('tr')
-                header_row = rows[0]
-                cols_headers = [c.get_text(strip=True) for c in header_row.find_all(['th', 'td'])]
-                
-                # "Satış Fiyatı TL/Sm3" kolonunun indeksini bul
-                target_col_idx = -1
-                for i, h in enumerate(cols_headers):
-                    if "SATIŞ" in h.upper() and "TL/SM3" in h.upper():
-                        target_col_idx = i
-                        break
-                
-                if target_col_idx == -1: continue # Kolon bulunamadıysa geç
-                
-                for row in rows[1:]:
-                    cols = row.find_all('td')
-                    if len(cols) > target_col_idx:
-                        row_text = cols[0].get_text(strip=True)
-                        # 2026 yılını ara
-                        if "2026" in row_text:
-                            # Ay ismini bul
-                            month_match = re.search(r'(Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık)', row_text, re.I)
-                            if month_match:
-                                month_name = month_match.group(1).capitalize()
-                                month_idx = ["", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"].index(month_name)
-                                
-                                # 0-100.000 aralığını kontrol et
-                                range_text = cols[1].get_text(strip=True)
-                                if "0-100.000" in range_text:
-                                    price_val = cols[target_col_idx].get_text(strip=True).replace(',', '.')
-                                    try:
-                                        final_price = float(price_val)
-                                        if month_idx not in extracted_data: extracted_data[month_idx] = {}
-                                        extracted_data[month_idx][current_kademe] = final_price
-                                        print(f"Bulundu: {month_name} 2026 {current_kademe.upper()} -> {final_price}")
-                                    except:
-                                        continue
+            current_kademe = "k1" if "KADEME 1" in prev_text else ("k2" if "KADEME 2" in prev_text else None)
+            if not current_kademe: continue
+            
+            rows = table.find_all('tr')
+            if not rows: continue
+            
+            # Başlık satırından "Satış Fiyatı TL/Sm3" kolonunu bul
+            target_idx = -1
+            header_cols = [c.get_text(strip=True).upper() for c in rows[0].find_all(['th', 'td'])]
+            for i, h in enumerate(header_cols):
+                if "SATIŞ" in h and "TL/SM3" in h:
+                    target_idx = i
+                    break
+            
+            if target_idx == -1: continue
+            
+            for row in rows[1:]:
+                cols = row.find_all('td')
+                if len(cols) > target_idx:
+                    period_text = cols[0].get_text(strip=True)
+                    # 2026 yılı ve ay ismini ara
+                    if "2026" in period_text:
+                        month_match = re.search(r'(Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık)', period_text, re.I)
+                        if month_match:
+                            month_name = month_match.group(1).capitalize()
+                            month_idx = ["", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"].index(month_name)
+                            
+                            # Tüketim aralığı "0-100.000" olanı seç (Evsel tüketim)
+                            range_text = cols[1].get_text(strip=True)
+                            if "0-100.000" in range_text:
+                                val_text = cols[target_idx].get_text(strip=True).replace(',', '.')
+                                try:
+                                    price = float(val_text)
+                                    if month_idx not in extracted_data: extracted_data[month_idx] = {}
+                                    extracted_data[month_idx][current_kademe] = price
+                                    print(f"BAŞARILI: {month_name} 2026 {current_kademe.upper()} -> {price}")
+                                except:
+                                    continue
         return extracted_data
     except Exception as e:
-        print(f"Tarama hatası: {e}")
+        print(f"Hata: {e}")
         return None
 
-def apply_updates(new_data):
-    if not new_data: return
-    
+def apply_updates(data):
+    if not data: return
     with open('index.html', 'r', encoding='utf-8') as f:
         html = f.read()
     
-    # AYLIK_LIMITLER bloğunu güncelle
-    for m_idx, prices in new_data.items():
-        for k_key, val in prices.items():
-            # Regex ile k1: 10.600615 veya k2: 20.828826 gibi alanları yakala
-            pattern = rf"({m_idx}:\s+{{.*?{k_key}:\s+)[\d\.]+"
-            replacement = rf"\g<1>{val:.6f}"
-            html = re.sub(pattern, replacement, html, flags=re.DOTALL)
+    # Verileri index.html içindeki AYLIK_LIMITLER yapısına işle
+    for m, p in data.items():
+        for k, v in p.items():
+            # Regex: m_idx: { ... k_key: 12.34 ... } yapısını yakala
+            pattern = rf"({m}:\s+{{.*?{k}:\s+)[\d\.]+"
+            html = re.sub(pattern, rf"\g<1>{v:.6f}", html, flags=re.DOTALL)
     
-    # Versiyonu artır ki cache temizlensin
-    html = re.sub(r"udas_limits_v\d+", "udas_limits_v" + str(int(re.search(r"udas_limits_v(\d+)", html).group(1)) + 1), html)
+    # Cache temizlemek için versiyonu artır
+    v_match = re.search(r"udas_limits_v(\d+)", html)
+    if v_match:
+        old_v = int(v_match.group(1))
+        html = html.replace(f"udas_limits_v{old_v}", f"udas_limits_v{old_v + 1}")
 
     with open('index.html', 'w', encoding='utf-8') as f:
         f.write(html)
-    print("index.html başarıyla güncellendi.")
+    print("index.html güncellendi.")
 
 if __name__ == "__main__":
-    data = get_latest_prices()
-    if data:
-        apply_updates(data)
-    else:
-        print("Güncel veri bulunamadı.")
+    latest = get_latest_prices()
+    if latest:
+        apply_updates(latest)
