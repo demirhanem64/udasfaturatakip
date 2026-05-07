@@ -1,85 +1,98 @@
 import requests
 from bs4 import BeautifulSoup
 import re
-import json
 import os
 
 URL = "https://www.udas.com.tr/dogalgaz-satis-fiyatlari/"
 
-def get_prices():
+def get_latest_prices():
     try:
-        response = requests.get(URL, timeout=20)
-        response.raise_for_status()
+        print("UDAŞ fiyatları taranıyor...")
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(URL, headers=headers, timeout=30)
+        response.encoding = 'utf-8'
         soup = BeautifulSoup(response.text, 'html.parser')
         
-        # 2026 yılı tablosunu bul
-        # Not: UDAŞ sitesi dinamik olduğu için en garanti yol tablolardaki metinleri taramaktır
-        prices = {}
+        extracted_data = {} # {month_idx: {'k1': price, 'k2': price}}
         
-        tables = soup.find_all('table')
-        for table in tables:
-            rows = table.find_all('tr')
-            for row in rows:
-                cols = row.find_all('td')
-                if len(cols) >= 6:
-                    text = cols[0].get_text(strip=True)
-                    # "Ocak 2026", "Mart 2026" gibi metinleri ara
-                    match = re.search(r'(Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık)\s+2026', text, re.IGNORECASE)
-                    if match:
-                        month_name = match.group(1).capitalize()
-                        # 0-100.000 Sm3 aralığını kontrol et
-                        if "0-100.000" in cols[1].get_text(strip=True):
-                            # Satış Fiyatı kolonu (genellikle sondan ikinci)
-                            price_text = cols[-2].get_text(strip=True).replace(',', '.')
-                            try:
-                                price = float(price_text)
-                                # K1 mi K2 mi olduğunu tablonun başlığından veya yapısından anlamaya çalış
-                                # Bu kısım sayfa yapısına göre gelişecektir. Şimdilik bulunan fiyatı uygun yere koyalım.
+        # Sayfadaki tüm başlıkları ve tabloları bul
+        sections = soup.find_all(['h1', 'h2', 'h3', 'h4', 'strong', 'p'])
+        
+        current_kademe = None
+        for element in soup.find_all(True): # Tüm elementleri sırayla gez
+            text = element.get_text(strip=True).upper()
+            
+            if "KADEME 1" in text:
+                current_kademe = "k1"
+            elif "KADEME 2" in text:
+                current_kademe = "k2"
+                
+            if element.name == 'table' and current_kademe:
+                rows = element.find_all('tr')
+                header_row = rows[0]
+                cols_headers = [c.get_text(strip=True) for c in header_row.find_all(['th', 'td'])]
+                
+                # "Satış Fiyatı TL/Sm3" kolonunun indeksini bul
+                target_col_idx = -1
+                for i, h in enumerate(cols_headers):
+                    if "SATIŞ" in h.upper() and "TL/SM3" in h.upper():
+                        target_col_idx = i
+                        break
+                
+                if target_col_idx == -1: continue # Kolon bulunamadıysa geç
+                
+                for row in rows[1:]:
+                    cols = row.find_all('td')
+                    if len(cols) > target_col_idx:
+                        row_text = cols[0].get_text(strip=True)
+                        # 2026 yılını ara
+                        if "2026" in row_text:
+                            # Ay ismini bul
+                            month_match = re.search(r'(Ocak|Şubat|Mart|Nisan|Mayıs|Haziran|Temmuz|Ağustos|Eylül|Ekim|Kasım|Aralık)', row_text, re.I)
+                            if month_match:
+                                month_name = month_match.group(1).capitalize()
                                 month_idx = ["", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"].index(month_name)
                                 
-                                if month_idx not in prices: prices[month_idx] = {}
-                                
-                                # Eğer bu tablo KADEME 1 başlığı altındaysa (veya row'un üstünde o başlık varsa)
-                                if "KADEME 1" in str(table.find_previous(['h3', 'h4', 'strong', 'p'])):
-                                    prices[month_idx]['k1'] = price
-                                elif "KADEME 2" in str(table.find_previous(['h3', 'h4', 'strong', 'p'])):
-                                    prices[month_idx]['k2'] = price
-                            except:
-                                continue
-        return prices
+                                # 0-100.000 aralığını kontrol et
+                                range_text = cols[1].get_text(strip=True)
+                                if "0-100.000" in range_text:
+                                    price_val = cols[target_col_idx].get_text(strip=True).replace(',', '.')
+                                    try:
+                                        final_price = float(price_val)
+                                        if month_idx not in extracted_data: extracted_data[month_idx] = {}
+                                        extracted_data[month_idx][current_kademe] = final_price
+                                        print(f"Bulundu: {month_name} 2026 {current_kademe.upper()} -> {final_price}")
+                                    except:
+                                        continue
+        return extracted_data
     except Exception as e:
-        print(f"Hata oluştu: {e}")
+        print(f"Tarama hatası: {e}")
         return None
 
-def update_index_html(new_prices):
-    if not new_prices: return
+def apply_updates(new_data):
+    if not new_data: return
     
     with open('index.html', 'r', encoding='utf-8') as f:
-        content = f.read()
+        html = f.read()
     
-    # index.html içindeki AYLIK_LIMITLER objesini bul ve güncelle
-    # Bu basit bir regex yerine daha güvenli bir yöntemle yapılabilir
-    for m_idx, p in new_prices.items():
-        if 'k1' in p:
-            regex = rf"{m_idx}:\s+{{ ay: '.*?'.*?k1: [\d\.]+"
-            replace = f"{m_idx}:  {{ ay: '{AY_ISIMLERI[m_idx]}',    gunluk: {LIMITLER[m_idx]},  k1: {p['k1']:.6f}"
-            content = re.sub(regex, replace, content, flags=re.DOTALL)
-        if 'k2' in p:
-            regex = rf"{m_idx}:\s+{{ ay: '.*?'.*?k2: [\d\.]+"
-            # ... bu kısım karmaşıklaşabilir, en iyisi AYLIK_LIMITLER'i tamamen JS içinde bir JSON olarak tutmak
-            # Ama şimdilik en temel k1 ve k2 güncellemelerini manuel yapalım
-            pass
+    # AYLIK_LIMITLER bloğunu güncelle
+    for m_idx, prices in new_data.items():
+        for k_key, val in prices.items():
+            # Regex ile k1: 10.600615 veya k2: 20.828826 gibi alanları yakala
+            pattern = rf"({m_idx}:\s+{{.*?{k_key}:\s+)[\d\.]+"
+            replacement = rf"\g<1>{val:.6f}"
+            html = re.sub(pattern, replacement, html, flags=re.DOTALL)
+    
+    # Versiyonu artır ki cache temizlensin
+    html = re.sub(r"udas_limits_v\d+", "udas_limits_v" + str(int(re.search(r"udas_limits_v(\d+)", html).group(1)) + 1), html)
 
     with open('index.html', 'w', encoding='utf-8') as f:
-        f.write(content)
-
-# Sabit limitler (Güncelleme sırasında kaybolmaması için)
-LIMITLER = {1: 9.43, 2: 10.61, 3: 8.15, 4: 6.64, 5: 3.43, 6: 1.44, 7: 0.83, 8: 0.69, 9: 0.72, 10: 1.24, 11: 3.60, 12: 6.94}
-AY_ISIMLERI = ["", "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran", "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık"]
+        f.write(html)
+    print("index.html başarıyla güncellendi.")
 
 if __name__ == "__main__":
-    current_prices = get_prices()
-    if current_prices:
-        print(f"Bulunan Fiyatlar: {current_prices}")
-        # Not: Otomatik güncelleme mantığı daha sonra geliştirilebilir, 
-        # şimdilik sadece fiyatları bulup loglamak için temel yapı kuruldu.
+    data = get_latest_prices()
+    if data:
+        apply_updates(data)
+    else:
+        print("Güncel veri bulunamadı.")
