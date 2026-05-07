@@ -18,11 +18,11 @@ import {
   parseISO, 
   addDays
 } from 'date-fns';
-import { AYLIK_LIMITLER, KDV_ORANI, VARSAYILAN_FIYATLAR, AY_ISIMLERI } from './constants';
+import { AYLIK_LIMITLER, KDV_ORANI, AY_ISIMLERI } from './constants';
 
 function App() {
   const [limits, setLimits] = useState(() => {
-    const saved = localStorage.getItem('udas_limits');
+    const saved = localStorage.getItem('udas_limits_v2'); 
     return saved ? JSON.parse(saved) : AYLIK_LIMITLER;
   });
 
@@ -41,7 +41,7 @@ function App() {
   const [isLimitsOpen, setIsLimitsOpen] = useState(false);
   const [isEditingLimits, setIsEditingLimits] = useState(false);
 
-  useEffect(() => { localStorage.setItem('udas_limits', JSON.stringify(limits)); }, [limits]);
+  useEffect(() => { localStorage.setItem('udas_limits_v2', JSON.stringify(limits)); }, [limits]);
   useEffect(() => { localStorage.setItem('udas_inputs', JSON.stringify(inputs)); }, [inputs]);
 
   const results = useMemo(() => {
@@ -140,7 +140,7 @@ function App() {
             {results.breakdown.map((item, idx) => (
               <div key={idx} className={`kademe-row ${item.isAboveLimit ? 'k2' : 'k1'}`}>
                 <div className={`kademe-badge ${item.isAboveLimit ? 'k2' : 'k1'}`}>{item.isAboveLimit ? 'K2' : 'K1'}</div>
-                <div className="kademe-info"><div className="kademe-title">{item.monthName} ({item.days} Gün)</div><div className="kademe-detail">{item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL <span className="tag">{item.isAboveLimit ? 'Limit Üstü' : 'Limit Altı'}</span></div></div>
+                <div className="kademe-info"><div className="kademe-title">{item.monthName} Dönemi ({item.days} Gün)</div><div className="kademe-detail">{item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL <span className="tag">{item.isAboveLimit ? 'Limit Üstü' : 'Limit Altı'}</span></div></div>
                 <div className="kademe-amount">{item.cost.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</div>
               </div>
             ))}
@@ -156,7 +156,7 @@ function App() {
 
         <section className="card animate-in">
           <div className="limits-toggle" onClick={() => setIsLimitsOpen(!isLimitsOpen)}>
-            <div className="card-header" style={{ marginBottom: 0 }}><div className="card-icon cyan"><Layers size={20} /></div><div><h2 className="card-title">Aylık Limitler</h2><p className="card-subtitle">UŞAK EPDK limitleri</p></div></div>
+            <div className="card-header" style={{ marginBottom: 0 }}><div className="card-icon cyan"><Layers size={20} /></div><div><h2 className="card-title">Aylık Limitler ve Fiyatlar</h2><p className="card-subtitle">UŞAK EPDK limitleri ve birim fiyatları</p></div></div>
             <ChevronDown size={18} />
           </div>
           {isLimitsOpen && (

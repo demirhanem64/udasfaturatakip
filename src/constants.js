@@ -4,7 +4,7 @@
 export const AYLIK_LIMITLER = {
   1:  { ay: 'Ocak',    aylik: 292.34, gunluk: 9.43,  k1: 10.600615, k2: 18.000000 },
   2:  { ay: 'Şubat',   aylik: 296.99, gunluk: 10.61, k1: 10.600615, k2: 18.000000 },
-  3:  { ay: 'Mart',    aylik: 252.67, gunluk: 8.15,  k1: 10.600615, k2: 18.000000 },
+  3:  { ay: 'Mart',    aylik: 252.67, gunluk: 8.15,  k1: 13.740000, k2: 18.000000 },
   4:  { ay: 'Nisan',   aylik: 199.05, gunluk: 6.64,  k1: 10.625000, k2: 21.067632 },
   5:  { ay: 'Mayıs',   aylik: 106.21, gunluk: 3.43,  k1: 10.625000, k2: 21.124296 },
   6:  { ay: 'Haziran', aylik: 43.10,  gunluk: 1.44,  k1: 10.625000, k2: 21.124296 },
