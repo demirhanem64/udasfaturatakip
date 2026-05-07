@@ -21,11 +21,6 @@ import {
 import { AYLIK_LIMITLER, KDV_ORANI, VARSAYILAN_FIYATLAR, AY_ISIMLERI } from './constants';
 
 function App() {
-  const [prices, setPrices] = useState(() => {
-    const saved = localStorage.getItem('udas_prices');
-    return saved ? JSON.parse(saved) : VARSAYILAN_FIYATLAR;
-  });
-
   const [limits, setLimits] = useState(() => {
     const saved = localStorage.getItem('udas_limits');
     return saved ? JSON.parse(saved) : AYLIK_LIMITLER;
@@ -38,7 +33,7 @@ function App() {
     return {
       startDate: format(new Date(), 'yyyy-MM-dd'),
       startIndex: '',
-      endDate: format(addDays(new Date(), 30), 'yyyy-MM-dd'),
+      endDate: format(new Date(), 'yyyy-MM-dd'),
       endIndex: ''
     };
   });
@@ -46,7 +41,6 @@ function App() {
   const [isLimitsOpen, setIsLimitsOpen] = useState(false);
   const [isEditingLimits, setIsEditingLimits] = useState(false);
 
-  useEffect(() => { localStorage.setItem('udas_prices', JSON.stringify(prices)); }, [prices]);
   useEffect(() => { localStorage.setItem('udas_limits', JSON.stringify(limits)); }, [limits]);
   useEffect(() => { localStorage.setItem('udas_inputs', JSON.stringify(inputs)); }, [inputs]);
 
@@ -66,26 +60,21 @@ function App() {
       monthDistribution[monthKey] = (monthDistribution[monthKey] || 0) + 1;
     });
     const breakdown = Object.entries(monthDistribution).map(([month, days]) => {
-      const monthLimit = limits[month].gunluk;
-      const isAboveLimit = avgDaily > monthLimit;
-      const price = isAboveLimit ? parseFloat(prices.kademe2) : parseFloat(prices.kademe1);
+      const monthData = limits[month];
+      const isAboveLimit = avgDaily > monthData.gunluk;
+      const price = isAboveLimit ? parseFloat(monthData.k2) : parseFloat(monthData.k1);
       const consumption = avgDaily * days;
       const cost = consumption * (isNaN(price) ? 0 : price);
-      return { month: parseInt(month), monthName: AY_ISIMLERI[month], days, limit: monthLimit, isAboveLimit, price, consumption, cost };
+      return { month: parseInt(month), monthName: AY_ISIMLERI[month], days, limit: monthData.gunluk, isAboveLimit, price, consumption, cost };
     });
     const subTotal = breakdown.reduce((acc, curr) => acc + curr.cost, 0);
     const kdv = subTotal * KDV_ORANI;
     return { totalDays, totalM3, avgDaily, breakdown, subTotal, kdv, grandTotal: subTotal + kdv };
-  }, [inputs, prices, limits]);
+  }, [inputs, limits]);
 
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setInputs(prev => ({ ...prev, [name]: value }));
-  };
-
-  const handlePriceChange = (e) => {
-    const { name, value } = e.target;
-    setPrices(prev => ({ ...prev, [name]: value }));
   };
 
   const handleLimitChange = (month, field, value) => {
@@ -97,33 +86,10 @@ function App() {
       <header className="header animate-in">
         <div className="header-badge"><TrendingUp size={14} /> UDAŞ AKILLI FATURA TAKİP</div>
         <h1>Doğalgaz Fatura Tahmini</h1>
-        <p>Endeks verilerinizi girerek kademeli tarife üzerinden tahmini fatura bedelinizi hesaplayın.</p>
+        <p>Aylık limitler ve güncel birim fiyatlar otomatik olarak her döneme özel hesaplanır.</p>
       </header>
 
       <main>
-        <section className="card animate-in">
-          <div className="card-header">
-            <div className="card-icon blue"><Settings size={20} /></div>
-            <div><h2 className="card-title">Fiyat Ayarları</h2><p className="card-subtitle">Güncel birim fiyatlarını buraya girin</p></div>
-          </div>
-          <div className="form-grid form-grid-2">
-            <div className="form-group">
-              <label className="form-label">Kademe 1 Birim Fiyat (TL)</label>
-              <div className="input-with-unit">
-                <input type="number" step="0.000001" name="kademe1" value={prices.kademe1} onChange={handlePriceChange} className="form-input" placeholder="0.00" />
-                <span className="input-unit">TL/m³</span>
-              </div>
-            </div>
-            <div className="form-group">
-              <label className="form-label">Kademe 2 Birim Fiyat (TL)</label>
-              <div className="input-with-unit">
-                <input type="number" step="0.000001" name="kademe2" value={prices.kademe2} onChange={handlePriceChange} className="form-input" placeholder="0.00" />
-                <span className="input-unit">TL/m³</span>
-              </div>
-            </div>
-          </div>
-        </section>
-
         <section className="card animate-in">
           <div className="card-header">
             <div className="card-icon purple"><Calculator size={20} /></div>
@@ -198,21 +164,48 @@ function App() {
               <div className="divider" />
               <button className={isEditingLimits ? "btn-save" : "edit-limits-btn"} onClick={() => setIsEditingLimits(!isEditingLimits)}>{isEditingLimits ? "Kaydet" : "Düzenle"}</button>
               {isEditingLimits ? (
-                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(180px, 1fr))', gap: '10px', marginTop: '15px'}}>
+                <div style={{display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))', gap: '15px', marginTop: '15px'}}>
                   {Object.entries(limits).map(([m, d]) => (
-                    <div key={m} style={{padding: '10px', background: 'rgba(255,255,255,0.03)', borderRadius: '8px'}}>
-                      <div style={{fontSize: '12px', fontWeight: 'bold'}}>{d.ay}</div>
-                      <input type="number" step="0.01" value={d.gunluk} onChange={(e) => handleLimitChange(m, 'gunluk', e.target.value)} className="form-input" style={{marginTop: '5px'}} />
+                    <div key={m} style={{padding: '12px', background: 'rgba(255,255,255,0.03)', borderRadius: '12px', border: '1px solid var(--border)'}}>
+                      <div style={{fontSize: '13px', fontWeight: 'bold', marginBottom: '8px', color: 'var(--accent-blue)'}}>{d.ay}</div>
+                      <div style={{display: 'grid', gap: '8px'}}>
+                        <div className="form-group">
+                          <label style={{fontSize: '10px', color: 'var(--text-muted)'}}>GÜNLÜK LİMİT</label>
+                          <input type="number" step="0.01" value={d.gunluk} onChange={(e) => handleLimitChange(m, 'gunluk', e.target.value)} className="form-input" />
+                        </div>
+                        <div className="form-group">
+                          <label style={{fontSize: '10px', color: 'var(--text-muted)'}}>KADEME 1 (TL)</label>
+                          <input type="number" step="0.000001" value={d.k1} onChange={(e) => handleLimitChange(m, 'k1', e.target.value)} className="form-input" />
+                        </div>
+                        <div className="form-group">
+                          <label style={{fontSize: '10px', color: 'var(--text-muted)'}}>KADEME 2 (TL)</label>
+                          <input type="number" step="0.000001" value={d.k2} onChange={(e) => handleLimitChange(m, 'k2', e.target.value)} className="form-input" />
+                        </div>
+                      </div>
                     </div>
                   ))}
                 </div>
               ) : (
                 <div className="limits-table-wrapper">
                   <table className="limits-table">
-                    <thead><tr><th>AY</th><th>GÜNLÜK</th><th>DURUM</th></tr></thead>
+                    <thead>
+                      <tr>
+                        <th>AY</th>
+                        <th>GÜNLÜK</th>
+                        <th>K1 FİYAT</th>
+                        <th>K2 FİYAT</th>
+                        <th>DURUM</th>
+                      </tr>
+                    </thead>
                     <tbody>
                       {Object.entries(limits).map(([m, d]) => (
-                        <tr key={m}><td>{d.ay}</td><td>{d.gunluk.toFixed(2)}</td><td><span className={`tag ${results && results.avgDaily > d.gunluk ? 'orange' : 'green'}`}>{results && results.avgDaily > d.gunluk ? 'Üst' : 'Alt'}</span></td></tr>
+                        <tr key={m}>
+                          <td style={{textAlign: 'left', fontWeight: '600'}}>{d.ay}</td>
+                          <td style={{color: 'var(--accent-blue)'}}>{d.gunluk.toFixed(2)}</td>
+                          <td style={{color: 'var(--accent-green)'}}>{d.k1.toFixed(4)}</td>
+                          <td style={{color: 'var(--accent-orange)'}}>{d.k2.toFixed(4)}</td>
+                          <td><span className={`tag ${results && results.avgDaily > d.gunluk ? 'orange' : 'green'}`}>{results && results.avgDaily > d.gunluk ? 'Limit Üstü' : 'Limit Altı'}</span></td>
+                        </tr>
                       ))}
                     </tbody>
                   </table>
