@@ -1,17 +1,232 @@
 <!DOCTYPE html>
 <html lang="tr">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/vite.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>UDAŞ Fatura Takip - Akıllı Doğalgaz Hesaplama</title>
-    <meta name="description" content="UDAŞ kademeli doğalgaz fatura hesaplama ve takip uygulaması. Güncel limitlere göre tahmini fatura bedelinizi öğrenin." />
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-  </head>
-  <body>
+    <!-- Lucide Icons -->
+    <script src="https://unpkg.com/lucide@latest"></script>
+    <!-- React & Babel -->
+    <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
+    <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
+    <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+    <!-- Date-fns -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/2.30.0/index.min.js"></script>
+
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        :root {
+            --bg-primary: #0a0f1e; --bg-secondary: #0d1428; --bg-card: rgba(255, 255, 255, 0.04);
+            --text-primary: #e2e8f0; --text-secondary: #94a3b8; --accent-blue: #63b3ed;
+            --accent-green: #68d391; --accent-orange: #f6ad55; --border: rgba(255, 255, 255, 0.10);
+            --radius-lg: 16px; --transition: all 0.25s ease;
+        }
+        body { font-family: 'Outfit', sans-serif; background: var(--bg-primary); color: var(--text-primary); min-height: 100vh; line-height: 1.6; }
+        .app-wrapper { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
+        .header { text-align: center; padding: 30px 0; }
+        .header h1 { font-size: 32px; background: linear-gradient(135deg, #fff, var(--accent-blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 20px; backdrop-filter: blur(10px); }
+        .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+        @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
+        .form-group { display: flex; flex-direction: column; gap: 6px; }
+        label { font-size: 12px; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; }
+        input { background: rgba(255,255,255,0.06); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: #fff; outline: none; width: 100%; }
+        input:focus { border-color: var(--accent-blue); }
+        .stat-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-top: 20px; }
+        .stat-box { background: rgba(0,0,0,0.2); padding: 15px; border-radius: 12px; text-align: center; border: 1px solid var(--border); }
+        .kademe-row { display: flex; align-items: center; gap: 15px; padding: 15px; border-radius: 12px; margin-bottom: 10px; background: rgba(255,255,255,0.03); }
+        .k1 { border-left: 4px solid var(--accent-green); }
+        .k2 { border-left: 4px solid var(--accent-orange); }
+        .total-box { background: linear-gradient(135deg, rgba(99,179,237,0.1), rgba(0,0,0,0.3)); padding: 30px; border-radius: 16px; text-align: center; border: 1px solid var(--accent-blue); }
+        .total-amount { font-size: 48px; font-weight: 700; color: var(--accent-blue); }
+        .tag { font-size: 10px; padding: 2px 8px; border-radius: 100px; background: rgba(255,255,255,0.1); }
+        .limits-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
+        .limits-table th, .limits-table td { padding: 10px; border-bottom: 1px solid var(--border); text-align: center; }
+        .btn-edit { background: var(--accent-blue); color: #000; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+    </style>
+</head>
+<body>
     <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+
+    <script type="text/babel">
+        const { useState, useEffect, useMemo } = React;
+
+        const AYLIK_LIMITLER = {
+            1:  { ay: 'Ocak',    gunluk: 9.43,  k1: 10.600615, k2: 18.000000 },
+            2:  { ay: 'Şubat',   gunluk: 10.61, k1: 10.600615, k2: 18.000000 },
+            3:  { ay: 'Mart',    gunluk: 8.15,  k1: 13.740000, k2: 18.000000 },
+            4:  { ay: 'Nisan',   gunluk: 6.64,  k1: 10.625000, k2: 21.067632 },
+            5:  { ay: 'Mayıs',   gunluk: 3.43,  k1: 10.625000, k2: 21.124296 },
+            6:  { ay: 'Haziran', gunluk: 1.44,  k1: 10.625000, k2: 21.124296 },
+            7:  { ay: 'Temmuz',  gunluk: 0.83,  k1: 10.625000, k2: 21.124296 },
+            8:  { ay: 'Ağustos', gunluk: 0.69,  k1: 10.625000, k2: 21.124296 },
+            9:  { ay: 'Eylül',   gunluk: 0.72,  k1: 10.625000, k2: 21.124296 },
+            10: { ay: 'Ekim',    gunluk: 1.24,  k1: 10.625000, k2: 21.124296 },
+            11: { ay: 'Kasım',   gunluk: 3.60,  k1: 10.625000, k2: 21.124296 },
+            12: { ay: 'Aralık',  gunluk: 6.94,  k1: 10.625000, k2: 21.124296 },
+        };
+
+        const AY_ISIMLERI = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
+
+        function App() {
+            const [limits, setLimits] = useState(() => {
+                const saved = localStorage.getItem('udas_limits_v3');
+                return saved ? JSON.parse(saved) : AYLIK_LIMITLER;
+            });
+
+            const [inputs, setInputs] = useState(() => {
+                const saved = localStorage.getItem('udas_inputs_v3');
+                const today = new Date().toISOString().split('T')[0];
+                return saved ? JSON.parse(saved) : { startDate: today, startIndex: '', endDate: today, endIndex: '' };
+            });
+
+            const [isEditing, setIsEditing] = useState(false);
+
+            useEffect(() => { localStorage.setItem('udas_limits_v3', JSON.stringify(limits)); }, [limits]);
+            useEffect(() => { localStorage.setItem('udas_inputs_v3', JSON.stringify(inputs)); }, [inputs]);
+
+            const results = useMemo(() => {
+                if (!inputs.startDate || !inputs.endDate || inputs.startIndex === '' || inputs.endIndex === '') return null;
+                const start = new Date(inputs.startDate);
+                const end = new Date(inputs.endDate);
+                const totalDays = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+                if (totalDays <= 0) return null;
+                const totalM3 = parseFloat(inputs.endIndex) - parseFloat(inputs.startIndex);
+                if (isNaN(totalM3) || totalM3 < 0) return null;
+                const avgDaily = totalM3 / totalDays;
+
+                const breakdown = {};
+                for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+                    const month = d.getMonth() + 1;
+                    breakdown[month] = (breakdown[month] || 0) + 1;
+                }
+
+                const detail = Object.entries(breakdown).map(([month, days]) => {
+                    const mData = limits[month];
+                    const isAbove = avgDaily > mData.gunluk;
+                    const price = isAbove ? mData.k2 : mData.k1;
+                    const consumption = avgDaily * days;
+                    const cost = consumption * price;
+                    return { monthName: AY_ISIMLERI[month], days, isAbove, price, consumption, cost };
+                });
+
+                const subTotal = detail.reduce((acc, c) => acc + c.cost, 0);
+                const kdv = subTotal * 0.20;
+                return { totalDays, totalM3, avgDaily, detail, subTotal, kdv, grandTotal: subTotal + kdv };
+            }, [inputs, limits]);
+
+            const handleLimitChange = (m, field, val) => {
+                setLimits(prev => ({ ...prev, [m]: { ...prev[m], [field]: parseFloat(val) || 0 } }));
+            };
+
+            return (
+                <div className="app-wrapper">
+                    <header className="header">
+                        <h1>UDAŞ Fatura Takip</h1>
+                        <p style={{color: 'var(--text-secondary)'}}>Kademeli Doğalgaz Hesaplama Sistemi</p>
+                    </header>
+
+                    <main>
+                        <div className="card">
+                            <h3 style={{marginBottom: '15px'}}>Endeks Bilgileri</h3>
+                            <div className="form-grid">
+                                <div className="form-group">
+                                    <label>İlk Okuma Tarihi</label>
+                                    <input type="date" value={inputs.startDate} onChange={e => setInputs({...inputs, startDate: e.target.value})} />
+                                </div>
+                                <div className="form-group">
+                                    <label>İlk Endeks (m³)</label>
+                                    <input type="number" value={inputs.startIndex} onChange={e => setInputs({...inputs, startIndex: e.target.value})} placeholder="0" />
+                                </div>
+                                <div className="form-group">
+                                    <label>Son Okuma Tarihi</label>
+                                    <input type="date" value={inputs.endDate} onChange={e => setInputs({...inputs, endDate: e.target.value})} />
+                                </div>
+                                <div className="form-group">
+                                    <label>Son Endeks (m³)</label>
+                                    <input type="number" value={inputs.endIndex} onChange={e => setInputs({...inputs, endIndex: e.target.value})} placeholder="0" />
+                                </div>
+                            </div>
+
+                            {results && (
+                                <div className="stat-grid">
+                                    <div className="stat-box"><div style={{fontSize:'10px'}}>GÜN</div><div style={{fontSize:'20px', fontWeight:'700', color:'var(--accent-blue)'}}>{results.totalDays}</div></div>
+                                    <div className="stat-box"><div style={{fontSize:'10px'}}>TOPLAM m³</div><div style={{fontSize:'20px', fontWeight:'700', color:'var(--accent-green)'}}>{results.totalM3.toFixed(2)}</div></div>
+                                    <div className="stat-box"><div style={{fontSize:'10px'}}>GÜNLÜK ORT</div><div style={{fontSize:'20px', fontWeight:'700', color:'var(--accent-orange)'}}>{results.avgDaily.toFixed(3)}</div></div>
+                                </div>
+                            )}
+                        </div>
+
+                        {results && (
+                            <div className="card">
+                                <h3 style={{marginBottom: '15px'}}>Hesaplama Özeti</h3>
+                                {results.detail.map((item, idx) => (
+                                    <div key={idx} className={`kademe-row ${item.isAbove ? 'k2' : 'k1'}`}>
+                                        <div style={{flex:1}}>
+                                            <div style={{fontWeight:'600'}}>{item.monthName} Dönemi ({item.days} Gün)</div>
+                                            <div style={{fontSize:'12px', color:'var(--text-secondary)'}}>
+                                                {item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL 
+                                                <span className="tag" style={{marginLeft:'8px'}}>{item.isAbove ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}</span>
+                                            </div>
+                                        </div>
+                                        <div style={{fontWeight:'700'}}>{item.cost.toLocaleString('tr-TR', {minimumFractionDigits:2})} TL</div>
+                                    </div>
+                                ))}
+                                <div className="total-box">
+                                    <div className="total-amount">{results.grandTotal.toLocaleString('tr-TR', {minimumFractionDigits:2})} TL</div>
+                                    <div style={{fontSize:'12px', color:'var(--text-secondary)'}}>KDV Dahil (Matrah: {results.subTotal.toLocaleString('tr-TR', {minimumFractionDigits:2})} TL)</div>
+                                </div>
+                            </div>
+                        )}
+
+                        <div className="card">
+                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
+                                <h3>Aylık Limitler ve Fiyatlar</h3>
+                                <button className="btn-edit" onClick={() => setIsEditing(!isEditing)}>{isEditing ? 'Kaydet' : 'Düzenle'}</button>
+                            </div>
+                            {isEditing ? (
+                                <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'10px'}}>
+                                    {Object.entries(limits).map(([m, d]) => (
+                                        <div key={m} style={{padding:'10px', background:'rgba(255,255,255,0.03)', borderRadius:'8px', border:'1px solid var(--border)'}}>
+                                            <div style={{fontWeight:'bold', color:'var(--accent-blue)'}}>{d.ay}</div>
+                                            <div style={{fontSize:'10px', marginTop:'5px'}}>LİMİT</div>
+                                            <input type="number" value={d.gunluk} onChange={e => handleLimitChange(m, 'gunluk', e.target.value)} />
+                                            <div style={{fontSize:'10px', marginTop:'5px'}}>KADEME 1 (TL)</div>
+                                            <input type="number" value={d.k1} onChange={e => handleLimitChange(m, 'k1', e.target.value)} />
+                                            <div style={{fontSize:'10px', marginTop:'5px'}}>KADEME 2 (TL)</div>
+                                            <input type="number" value={d.k2} onChange={e => handleLimitChange(m, 'k2', e.target.value)} />
+                                        </div>
+                                    ))}
+                                </div>
+                            ) : (
+                                <div style={{overflowX:'auto'}}>
+                                    <table className="limits-table">
+                                        <thead><tr><th>AY</th><th>LİMİT</th><th>K1 FİYAT</th><th>K2 FİYAT</th></tr></thead>
+                                        <tbody>
+                                            {Object.entries(limits).map(([m, d]) => (
+                                                <tr key={m}>
+                                                    <td>{d.ay}</td>
+                                                    <td style={{color:'var(--accent-blue)'}}>{d.gunluk}</td>
+                                                    <td style={{color:'var(--accent-green)'}}>{d.k1}</td>
+                                                    <td style={{color:'var(--accent-orange)'}}>{d.k2}</td>
+                                                </tr>
+                                            ))}
+                                        </tbody>
+                                    </table>
+                                </div>
+                            )}
+                        </div>
+                    </main>
+                </div>
+            );
+        }
+
+        const root = ReactDOM.createRoot(document.getElementById('root'));
+        root.render(<App />);
+    </script>
+</body>
 </html>
