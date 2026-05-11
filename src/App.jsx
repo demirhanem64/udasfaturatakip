@@ -142,12 +142,12 @@ function App() {
                 <div className="kademe-info">
                   <div className="kademe-title">{item.monthName} Dönemi ({item.days} Gün)</div>
                   <div className="kademe-detail">
-                    <span className="consumption-text">{item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL</span>
+                    <span className="consumption-text" style={{ fontSize: '1.1em' }}>{item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL</span>
                     <div className="tag-group">
-                      <span className="tag status-tag" style={{ background: item.isAboveLimit ? 'rgba(246,173,85,0.15)' : 'rgba(104,211,145,0.15)' }}>
+                      <span className="tag status-tag" style={{ background: item.isAboveLimit ? 'rgba(246,173,85,0.15)' : 'rgba(104,211,145,0.15)', fontSize: '0.9em' }}>
                         {item.isAboveLimit ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}
                       </span>
-                      <span className="tag limit-tag">Limit: {item.periodLimit.toFixed(2)} m³</span>
+                      <span className="tag limit-tag" style={{ fontSize: '0.9em' }}>Limit: {item.periodLimit.toFixed(2)} m³ ({item.limit.toFixed(2)} x {item.days} gün)</span>
                     </div>
                   </div>
                 </div>
@@ -196,48 +196,51 @@ function App() {
                   ))}
                 </div>
               ) : (
-                <div className="limits-table-wrapper">
-                  <table className="limits-table">
-                    <thead>
-                      <tr>
-                        <th>AY</th>
-                        <th>GÜNLÜK</th>
-                        <th>K1 FİYAT</th>
-                        <th>K2 FİYAT</th>
-                        <th>DURUM</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {Object.entries(limits).map(([m, d]) => {
-                        const isCurrentMonth = new Date().getMonth() + 1 === parseInt(m);
-                        const isExceeded = results && results.avgDaily > d.gunluk;
-                        const usagePercent = results ? (results.avgDaily / d.gunluk) * 100 : 0;
-                        return (
-                          <tr key={m} className={results ? (isExceeded ? 'row-warning' : 'row-success') : ''}>
-                            <td style={{textAlign: 'left', fontWeight: '600'}}>
-                              {d.ay}
-                              {isCurrentMonth && <span className="current-badge">BU AY</span>}
-                            </td>
-                            <td data-label="Limit" style={{color: 'var(--accent-blue)'}}>{d.gunluk.toFixed(2)}</td>
-                            <td data-label="K1 Fiyat" style={{color: 'var(--accent-green)'}}>{d.k1.toFixed(4)}</td>
-                            <td data-label="K2 Fiyat" style={{color: 'var(--accent-orange)'}}>{d.k2.toFixed(4)}</td>
-                            <td data-label="Tahmin">
-                              {results ? (
-                                <div className="prediction-status">
-                                  <span className={`tag ${isExceeded ? 'orange' : 'green'}`}>{isExceeded ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}</span>
-                                  <div className="usage-bar-container">
-                                    <div className={`usage-bar ${isExceeded ? 'high' : 'normal'}`} style={{ width: `${Math.min(usagePercent, 100)}%` }} />
-                                    <span className="usage-percent">%{usagePercent.toFixed(0)} kullanım</span>
-                                  </div>
-                                </div>
-                              ) : '-'}
-                            </td>
-                          </tr>
-                        );
-                      })}
-                    </tbody>
-                  </table>
-                </div>
+              <div className="limits-grid">
+                {Object.entries(limits).map(([m, d]) => {
+                  const isCurrentMonth = new Date().getMonth() + 1 === parseInt(m);
+                  const isExceeded = results && results.avgDaily > d.gunluk;
+                  const usagePercent = results ? (results.avgDaily / d.gunluk) * 100 : 0;
+                  
+                  return (
+                    <div key={m} className={`month-card ${isCurrentMonth ? 'is-current' : ''} ${results ? (isExceeded ? 'is-exceeded' : 'is-ok') : ''}`}>
+                      <div className="month-card-header">
+                        <span className="month-card-name">{d.ay}</span>
+                        {isCurrentMonth && <span className="month-card-badge">BU AY</span>}
+                      </div>
+                      
+                      <div className="month-card-content">
+                        <div className="month-card-stat">
+                          <span className="stat-label">GÜNLÜK LİMİT</span>
+                          <span className="stat-value">{d.gunluk.toFixed(2)}</span>
+                          <span className="stat-unit">m³/gün</span>
+                        </div>
+                        <div className="month-card-prices">
+                          <div className="price-tag">K1: {parseFloat(d.k1 || 0).toFixed(2)}</div>
+                          <div className="price-tag">K2: {parseFloat(d.k2 || 0).toFixed(2)}</div>
+                        </div>
+                      </div>
+
+                      {results && (
+                        <div className="month-card-footer">
+                          <div className="month-usage-header">
+                            <span className={`month-status-text ${isExceeded ? 'danger' : 'success'}`}>
+                              {isExceeded ? 'Limit Üstü' : 'Limit Altı'}
+                            </span>
+                            <span className="month-usage-percent">%{usagePercent.toFixed(0)}</span>
+                          </div>
+                          <div className="month-usage-bar-bg">
+                            <div 
+                              className={`month-usage-bar ${isExceeded ? 'high' : 'low'}`} 
+                              style={{ width: `${Math.min(usagePercent, 100)}%` }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
               )}
             </div>
           )}
