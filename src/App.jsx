@@ -142,21 +142,21 @@ function App() {
                 <div className="kademe-info">
                   <div className="kademe-title">{item.monthName} Dönemi ({item.days} Gün)</div>
                   <div className="kademe-detail">
-                    <span className="consumption-text" style={{ fontSize: '1.1em' }}>{item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL</span>
-                    <div className="tag-group">
-                      <span className="tag status-tag" style={{ background: item.isAboveLimit ? 'rgba(246,173,85,0.15)' : 'rgba(104,211,145,0.15)', fontSize: '0.9em' }}>
+                    <span className="consumption-text" style={{ fontSize: '1.2em', fontWeight: '600' }}>{item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL</span>
+                    <div className="tag-group" style={{ marginTop: '10px' }}>
+                      <span className="tag status-tag" style={{ background: item.isAboveLimit ? 'rgba(246,173,85,0.15)' : 'rgba(104,211,145,0.15)', fontSize: '1.1em', padding: '4px 12px' }}>
                         {item.isAboveLimit ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}
                       </span>
-                      <span className="tag limit-tag" style={{ fontSize: '0.9em' }}>Limit: {item.periodLimit.toFixed(2)} m³ ({item.limit.toFixed(2)} x {item.days} gün)</span>
+                      <span className="tag limit-tag" style={{ fontSize: '1.1em', padding: '4px 12px' }}>Günlük Limit: {item.limit.toFixed(2)} m³</span>
                     </div>
                   </div>
                 </div>
-                <div className="kademe-amount">{item.cost.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</div>
+                <div className="kademe-amount" style={{ fontSize: '28px', fontWeight: '800', color: 'var(--accent-blue)' }}>{item.cost.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</div>
               </div>
             ))}
             <div className="divider" />
             <div className="result-total">
-              <div className="result-total-amount">{results.grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</div>
+              <div className="result-total-amount" style={{ fontSize: '64px', fontWeight: '900' }}>{results.grandTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</div>
               <div style={{fontSize: '12px', color: 'var(--text-muted)'}}>(KDV Dahil, Matrah: {results.subTotal.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL)</div>
             </div>
           </section>

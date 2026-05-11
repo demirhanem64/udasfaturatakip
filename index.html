@@ -208,19 +208,19 @@
                                     <div key={idx} className={`kademe-row ${item.isAbove ? 'k2' : 'k1'}`}>
                                         <div style={{flex:1}}>
                                             <div style={{fontWeight:'600'}}>{item.monthName} Dönemi ({item.days} Gün)</div>
-                                            <div style={{fontSize:'14px', color:'var(--text-secondary)', display:'flex', flexDirection:'column', gap:'4px'}}>
-                                                <span style={{fontSize:'16px', fontWeight:'600', color:'var(--text-primary)'}}>{item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL</span>
-                                                <div className="tag-group">
-                                                    <span className="tag" style={{background: item.isAbove ? 'rgba(246,173,85,0.2)' : 'rgba(104,211,145,0.2)', fontSize:'12px'}}>{item.isAbove ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}</span>
-                                                    <span className="tag limit-tag" style={{fontSize:'12px'}}>Limit: {item.periodLimit.toFixed(2)} m³ ({item.dailyLimit.toFixed(2)} x {item.days} gün)</span>
+                                            <div style={{fontSize:'14px', color:'var(--text-secondary)', display:'flex', flexDirection:'column', gap:'8px', marginTop:'6px'}}>
+                                                <span style={{fontSize:'18px', fontWeight:'700', color:'var(--text-primary)'}}>{item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL</span>
+                                                <div className="tag-group" style={{marginTop:'4px'}}>
+                                                    <span className="tag" style={{background: item.isAbove ? 'rgba(246,173,85,0.2)' : 'rgba(104,211,145,0.2)', fontSize:'14px', padding:'4px 10px'}}>{item.isAbove ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}</span>
+                                                    <span className="tag limit-tag" style={{fontSize:'14px', padding:'4px 10px'}}>Günlük Limit: {item.dailyLimit.toFixed(2)} m³</span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div style={{fontWeight:'700'}}>{item.cost.toLocaleString('tr-TR', {minimumFractionDigits:2})} TL</div>
+                                        <div style={{fontSize:'28px', fontWeight:'800', color:'var(--accent-blue)'}}>{item.cost.toLocaleString('tr-TR', {minimumFractionDigits:2})} TL</div>
                                     </div>
                                 ))}
                                 <div className="total-box">
-                                    <div className="total-amount">{results.grandTotal.toLocaleString('tr-TR', {minimumFractionDigits:2})} TL</div>
+                                    <div className="total-amount" style={{fontSize: '64px', fontWeight: '900'}}>{results.grandTotal.toLocaleString('tr-TR', {minimumFractionDigits:2})} TL</div>
                                     <div style={{fontSize:'12px', color:'var(--text-secondary)'}}>KDV Dahil (Matrah: {results.subTotal.toLocaleString('tr-TR', {minimumFractionDigits:2})} TL)</div>
                                 </div>
                             </div>
