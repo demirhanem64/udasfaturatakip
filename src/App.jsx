@@ -218,10 +218,10 @@ function App() {
                               {d.ay}
                               {isCurrentMonth && <span className="current-badge">BU AY</span>}
                             </td>
-                            <td style={{color: 'var(--accent-blue)'}}>{d.gunluk.toFixed(2)}</td>
-                            <td style={{color: 'var(--accent-green)'}}>{d.k1.toFixed(4)}</td>
-                            <td style={{color: 'var(--accent-orange)'}}>{d.k2.toFixed(4)}</td>
-                            <td>
+                            <td data-label="Limit" style={{color: 'var(--accent-blue)'}}>{d.gunluk.toFixed(2)}</td>
+                            <td data-label="K1 Fiyat" style={{color: 'var(--accent-green)'}}>{d.k1.toFixed(4)}</td>
+                            <td data-label="K2 Fiyat" style={{color: 'var(--accent-orange)'}}>{d.k2.toFixed(4)}</td>
+                            <td data-label="Tahmin">
                               {results ? (
                                 <div className="prediction-status">
                                   <span className={`tag ${isExceeded ? 'orange' : 'green'}`}>{isExceeded ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}</span>

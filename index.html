@@ -226,14 +226,14 @@
                                                 const usagePercent = results ? (results.avgDaily / d.gunluk) * 100 : 0;
                                                 return (
                                                     <tr key={m} className={results ? (isExceeded ? 'row-warning' : 'row-success') : ''}>
-                                                        <td>
+                                                        <td className="col-ay">
                                                             {d.ay}
                                                             {isCurrentMonth && <span className="current-badge">BU AY</span>}
                                                         </td>
-                                                        <td style={{color:'var(--accent-blue)'}}>{d.gunluk}</td>
-                                                        <td style={{color:'var(--accent-green)'}}>{d.k1}</td>
-                                                        <td style={{color:'var(--accent-orange)'}}>{d.k2}</td>
-                                                        <td>
+                                                        <td data-label="Limit" style={{color:'var(--accent-blue)'}}>{d.gunluk}</td>
+                                                        <td data-label="K1 Fiyat" style={{color:'var(--accent-green)'}}>{d.k1}</td>
+                                                        <td data-label="K2 Fiyat" style={{color:'var(--accent-orange)'}}>{d.k2}</td>
+                                                        <td data-label="Tahmin">
                                                             {results ? (
                                                                 <div className="prediction-status">
                                                                     <span className="tag" style={{background: isExceeded ? 'rgba(246,173,85,0.2)' : 'rgba(104,211,145,0.2)'}}>{isExceeded ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}</span>
