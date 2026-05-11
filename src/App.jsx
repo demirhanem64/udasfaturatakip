@@ -65,7 +65,7 @@ function App() {
       const price = isAboveLimit ? parseFloat(monthData.k2) : parseFloat(monthData.k1);
       const consumption = avgDaily * days;
       const cost = consumption * (isNaN(price) ? 0 : price);
-      return { month: parseInt(month), monthName: AY_ISIMLERI[month], days, limit: monthData.gunluk, isAboveLimit, price, consumption, cost };
+      return { month: parseInt(month), monthName: AY_ISIMLERI[month], days, limit: monthData.gunluk, periodLimit: monthData.gunluk * days, isAboveLimit, price, consumption, cost };
     });
     const subTotal = breakdown.reduce((acc, curr) => acc + curr.cost, 0);
     const kdv = subTotal * KDV_ORANI;
@@ -139,8 +139,18 @@ function App() {
             <div className="divider" />
             {results.breakdown.map((item, idx) => (
               <div key={idx} className={`kademe-row ${item.isAboveLimit ? 'k2' : 'k1'}`}>
-                <div className={`kademe-badge ${item.isAboveLimit ? 'k2' : 'k1'}`}>{item.isAboveLimit ? 'K2' : 'K1'}</div>
-                <div className="kademe-info"><div className="kademe-title">{item.monthName} Dönemi ({item.days} Gün)</div><div className="kademe-detail">{item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL <span className="tag">{item.isAboveLimit ? 'Limit Üstü' : 'Limit Altı'}</span></div></div>
+                <div className="kademe-info">
+                  <div className="kademe-title">{item.monthName} Dönemi ({item.days} Gün)</div>
+                  <div className="kademe-detail">
+                    <span className="consumption-text">{item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL</span>
+                    <div className="tag-group">
+                      <span className="tag status-tag" style={{ background: item.isAboveLimit ? 'rgba(246,173,85,0.15)' : 'rgba(104,211,145,0.15)' }}>
+                        {item.isAboveLimit ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}
+                      </span>
+                      <span className="tag limit-tag">Limit: {item.periodLimit.toFixed(2)} m³</span>
+                    </div>
+                  </div>
+                </div>
                 <div className="kademe-amount">{item.cost.toLocaleString('tr-TR', { minimumFractionDigits: 2 })} TL</div>
               </div>
             ))}
@@ -198,15 +208,33 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {Object.entries(limits).map(([m, d]) => (
-                        <tr key={m}>
-                          <td style={{textAlign: 'left', fontWeight: '600'}}>{d.ay}</td>
-                          <td style={{color: 'var(--accent-blue)'}}>{d.gunluk.toFixed(2)}</td>
-                          <td style={{color: 'var(--accent-green)'}}>{d.k1.toFixed(4)}</td>
-                          <td style={{color: 'var(--accent-orange)'}}>{d.k2.toFixed(4)}</td>
-                          <td><span className={`tag ${results && results.avgDaily > d.gunluk ? 'orange' : 'green'}`}>{results && results.avgDaily > d.gunluk ? 'Limit Üstü' : 'Limit Altı'}</span></td>
-                        </tr>
-                      ))}
+                      {Object.entries(limits).map(([m, d]) => {
+                        const isCurrentMonth = new Date().getMonth() + 1 === parseInt(m);
+                        const isExceeded = results && results.avgDaily > d.gunluk;
+                        const usagePercent = results ? (results.avgDaily / d.gunluk) * 100 : 0;
+                        return (
+                          <tr key={m} className={results ? (isExceeded ? 'row-warning' : 'row-success') : ''}>
+                            <td style={{textAlign: 'left', fontWeight: '600'}}>
+                              {d.ay}
+                              {isCurrentMonth && <span className="current-badge">BU AY</span>}
+                            </td>
+                            <td style={{color: 'var(--accent-blue)'}}>{d.gunluk.toFixed(2)}</td>
+                            <td style={{color: 'var(--accent-green)'}}>{d.k1.toFixed(4)}</td>
+                            <td style={{color: 'var(--accent-orange)'}}>{d.k2.toFixed(4)}</td>
+                            <td>
+                              {results ? (
+                                <div className="prediction-status">
+                                  <span className={`tag ${isExceeded ? 'orange' : 'green'}`}>{isExceeded ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}</span>
+                                  <div className="usage-bar-container">
+                                    <div className={`usage-bar ${isExceeded ? 'high' : 'normal'}`} style={{ width: `${Math.min(usagePercent, 100)}%` }} />
+                                    <span className="usage-percent">%{usagePercent.toFixed(0)} kullanım</span>
+                                  </div>
+                                </div>
+                              ) : '-'}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

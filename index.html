@@ -42,11 +42,21 @@
         .k1 { border-left: 4px solid var(--accent-green); }
         .k2 { border-left: 4px solid var(--accent-orange); }
         .total-box { background: linear-gradient(135deg, rgba(99,179,237,0.1), rgba(0,0,0,0.3)); padding: 30px; border-radius: 16px; text-align: center; border: 1px solid var(--accent-blue); }
-        .total-amount { font-size: 48px; font-weight: 700; color: var(--accent-blue); }
-        .tag { font-size: 10px; padding: 2px 8px; border-radius: 100px; background: rgba(255,255,255,0.1); }
-        .limits-table { width: 100%; border-collapse: collapse; margin-top: 15px; font-size: 13px; }
-        .limits-table th, .limits-table td { padding: 10px; border-bottom: 1px solid var(--border); text-align: center; }
+        .kademe-amount { font-size: 18px; font-weight: 700; }
         .btn-edit { background: var(--accent-blue); color: #000; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        
+        /* New Styles */
+        .tag-group { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 8px; align-items: center; }
+        .limit-tag { background: rgba(255, 255, 255, 0.05); border: 1px solid var(--border); color: var(--text-secondary); }
+        .row-success td { border-left: 3px solid var(--accent-green) !important; }
+        .row-warning td { border-left: 3px solid var(--accent-orange) !important; }
+        .current-badge { display: inline-block; font-size: 9px; background: var(--accent-blue); color: #000; padding: 1px 4px; border-radius: 4px; margin-left: 6px; font-weight: 800; vertical-align: middle; }
+        .prediction-status { display: flex; flex-direction: column; gap: 6px; align-items: center; }
+        .usage-bar-container { width: 80px; height: 4px; background: rgba(255, 255, 255, 0.1); border-radius: 2px; position: relative; overflow: visible; }
+        .usage-bar { height: 100%; border-radius: 2px; transition: width 0.6s ease; }
+        .usage-bar.normal { background: var(--accent-green); }
+        .usage-bar.high { background: var(--accent-orange); }
+        .usage-percent { position: absolute; top: 8px; left: 50%; transform: translateX(-50%); font-size: 9px; color: var(--text-secondary); white-space: nowrap; }
     </style>
 </head>
 <body>
@@ -111,7 +121,7 @@
                     const price = isAbove ? mData.k2 : mData.k1;
                     const consumption = avgDaily * days;
                     const cost = consumption * price;
-                    return { monthName: AY_ISIMLERI[month], days, isAbove, price, consumption, cost };
+                    return { monthName: AY_ISIMLERI[month], days, isAbove, price, consumption, cost, periodLimit: mData.gunluk * days };
                 });
 
                 const subTotal = detail.reduce((acc, c) => acc + c.cost, 0);
@@ -168,9 +178,12 @@
                                     <div key={idx} className={`kademe-row ${item.isAbove ? 'k2' : 'k1'}`}>
                                         <div style={{flex:1}}>
                                             <div style={{fontWeight:'600'}}>{item.monthName} Dönemi ({item.days} Gün)</div>
-                                            <div style={{fontSize:'12px', color:'var(--text-secondary)'}}>
-                                                {item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL 
-                                                <span className="tag" style={{marginLeft:'8px'}}>{item.isAbove ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}</span>
+                                            <div style={{fontSize:'12px', color:'var(--text-secondary)', display:'flex', flexDirection:'column'}}>
+                                                <span>{item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL</span>
+                                                <div className="tag-group">
+                                                    <span className="tag" style={{background: item.isAbove ? 'rgba(246,173,85,0.2)' : 'rgba(104,211,145,0.2)'}}>{item.isAbove ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}</span>
+                                                    <span className="tag limit-tag">Limit: {item.periodLimit.toFixed(2)} m³</span>
+                                                </div>
                                             </div>
                                         </div>
                                         <div style={{fontWeight:'700'}}>{item.cost.toLocaleString('tr-TR', {minimumFractionDigits:2})} TL</div>
@@ -207,14 +220,33 @@
                                     <table className="limits-table">
                                         <thead><tr><th>AY</th><th>LİMİT</th><th>K1 FİYAT</th><th>K2 FİYAT</th></tr></thead>
                                         <tbody>
-                                            {Object.entries(limits).map(([m, d]) => (
-                                                <tr key={m}>
-                                                    <td>{d.ay}</td>
-                                                    <td style={{color:'var(--accent-blue)'}}>{d.gunluk}</td>
-                                                    <td style={{color:'var(--accent-green)'}}>{d.k1}</td>
-                                                    <td style={{color:'var(--accent-orange)'}}>{d.k2}</td>
-                                                </tr>
-                                            ))}
+                                            {Object.entries(limits).map(([m, d]) => {
+                                                const isCurrentMonth = new Date().getMonth() + 1 === parseInt(m);
+                                                const isExceeded = results && results.avgDaily > d.gunluk;
+                                                const usagePercent = results ? (results.avgDaily / d.gunluk) * 100 : 0;
+                                                return (
+                                                    <tr key={m} className={results ? (isExceeded ? 'row-warning' : 'row-success') : ''}>
+                                                        <td>
+                                                            {d.ay}
+                                                            {isCurrentMonth && <span className="current-badge">BU AY</span>}
+                                                        </td>
+                                                        <td style={{color:'var(--accent-blue)'}}>{d.gunluk}</td>
+                                                        <td style={{color:'var(--accent-green)'}}>{d.k1}</td>
+                                                        <td style={{color:'var(--accent-orange)'}}>{d.k2}</td>
+                                                        <td>
+                                                            {results ? (
+                                                                <div className="prediction-status">
+                                                                    <span className="tag" style={{background: isExceeded ? 'rgba(246,173,85,0.2)' : 'rgba(104,211,145,0.2)'}}>{isExceeded ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}</span>
+                                                                    <div className="usage-bar-container">
+                                                                        <div className={`usage-bar ${isExceeded ? 'high' : 'normal'}`} style={{ width: `${Math.min(usagePercent, 100)}%` }}></div>
+                                                                        <span className="usage-percent">%{usagePercent.toFixed(0)} kullanım</span>
+                                                                    </div>
+                                                                </div>
+                                                            ) : '-'}
+                                                        </td>
+                                                    </tr>
+                                                );
+                                            })}
                                         </tbody>
                                     </table>
                                 </div>
