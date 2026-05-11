@@ -85,8 +85,8 @@ function App() {
     <div className="app-wrapper">
       <header className="header animate-in">
         <div className="header-badge"><TrendingUp size={14} /> UDAŞ AKILLI FATURA TAKİP</div>
-        <h1>Doğalgaz Fatura Tahmini</h1>
-        <p>Aylık limitler ve güncel birim fiyatlar otomatik olarak her döneme özel hesaplanır.</p>
+        <h1>UDAŞ Fatura Takip</h1>
+        <p>Kademeli Doğalgaz Faturası Hesaplama Sistemi</p>
       </header>
 
       <main>
