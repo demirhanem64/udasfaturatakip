@@ -8,14 +8,10 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <!-- Lucide Icons -->
-    <script src="https://unpkg.com/lucide@latest"></script>
     <!-- React & Babel -->
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
-    <!-- Date-fns -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/2.30.0/index.min.js"></script>
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -114,14 +110,25 @@
 
         function App() {
             const [limits, setLimits] = useState(() => {
-                const saved = localStorage.getItem('udas_limits_v3');
-                return saved ? JSON.parse(saved) : AYLIK_LIMITLER;
+                try {
+                    const saved = localStorage.getItem('udas_limits_v3');
+                    return saved ? JSON.parse(saved) : AYLIK_LIMITLER;
+                } catch (e) {
+                    console.error("Error parsing limits from localStorage:", e);
+                    return AYLIK_LIMITLER;
+                }
             });
 
             const [inputs, setInputs] = useState(() => {
-                const saved = localStorage.getItem('udas_inputs_v3');
-                const today = new Date().toISOString().split('T')[0];
-                return saved ? JSON.parse(saved) : { startDate: today, startIndex: '', endDate: today, endIndex: '' };
+                try {
+                    const saved = localStorage.getItem('udas_inputs_v3');
+                    const today = new Date().toISOString().split('T')[0];
+                    return saved ? JSON.parse(saved) : { startDate: today, startIndex: '', endDate: today, endIndex: '' };
+                } catch (e) {
+                    console.error("Error parsing inputs from localStorage:", e);
+                    const today = new Date().toISOString().split('T')[0];
+                    return { startDate: today, startIndex: '', endDate: today, endIndex: '' };
+                }
             });
 
             const [isEditing, setIsEditing] = useState(false);
@@ -146,12 +153,21 @@
                 }
 
                 const detail = Object.entries(breakdown).map(([month, days]) => {
-                    const mData = limits[month];
-                    const isAbove = avgDaily > mData.gunluk;
-                    const price = isAbove ? mData.k2 : mData.k1;
+                    const mData = limits[month] || AYLIK_LIMITLER[month] || { gunluk: 0, k1: 0, k2: 0 };
+                    const isAbove = avgDaily > (mData.gunluk || 0);
+                    const price = isAbove ? (mData.k2 || 0) : (mData.k1 || 0);
                     const consumption = avgDaily * days;
                     const cost = consumption * price;
-                    return { monthName: AY_ISIMLERI[month], days, isAbove, price, consumption, cost, periodLimit: mData.gunluk * days, dailyLimit: mData.gunluk };
+                    return { 
+                        monthName: AY_ISIMLERI[month] || `Ay ${month}`, 
+                        days, 
+                        isAbove, 
+                        price, 
+                        consumption, 
+                        cost, 
+                        periodLimit: (mData.gunluk || 0) * days, 
+                        dailyLimit: mData.gunluk || 0 
+                    };
                 });
 
                 const subTotal = detail.reduce((acc, c) => acc + c.cost, 0);
@@ -233,38 +249,42 @@
                             </div>
                             {isEditing ? (
                                 <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'10px'}}>
-                                    {Object.entries(limits).map(([m, d]) => (
-                                        <div key={m} style={{padding:'10px', background:'rgba(255,255,255,0.03)', borderRadius:'8px', border:'1px solid var(--border)'}}>
-                                            <div style={{fontWeight:'bold', color:'var(--accent-blue)'}}>{d.ay}</div>
-                                            <div style={{fontSize:'10px', marginTop:'5px'}}>LİMİT</div>
-                                            <input type="number" value={d.gunluk} onChange={e => handleLimitChange(m, 'gunluk', e.target.value)} />
-                                            <div style={{fontSize:'10px', marginTop:'5px'}}>K1 FİYAT (TL)</div>
-                                            <input type="number" value={d.k1} onChange={e => handleLimitChange(m, 'k1', e.target.value)} />
-                                            <div style={{fontSize:'10px', marginTop:'5px'}}>K2 FİYAT (TL)</div>
-                                            <input type="number" value={d.k2} onChange={e => handleLimitChange(m, 'k2', e.target.value)} />
-                                        </div>
-                                    ))}
+                                    {Object.entries(limits).map(([m, d]) => {
+                                        if (!d) return null;
+                                        return (
+                                            <div key={m} style={{padding:'10px', background:'rgba(255,255,255,0.03)', borderRadius:'8px', border:'1px solid var(--border)'}}>
+                                                <div style={{fontWeight:'bold', color:'var(--accent-blue)'}}>{d.ay || ''}</div>
+                                                <div style={{fontSize:'10px', marginTop:'5px'}}>LİMİT</div>
+                                                <input type="number" value={d.gunluk || 0} onChange={e => handleLimitChange(m, 'gunluk', e.target.value)} />
+                                                <div style={{fontSize:'10px', marginTop:'5px'}}>K1 FİYAT (TL)</div>
+                                                <input type="number" value={d.k1 || 0} onChange={e => handleLimitChange(m, 'k1', e.target.value)} />
+                                                <div style={{fontSize:'10px', marginTop:'5px'}}>K2 FİYAT (TL)</div>
+                                                <input type="number" value={d.k2 || 0} onChange={e => handleLimitChange(m, 'k2', e.target.value)} />
+                                            </div>
+                                        );
+                                    })}
                                 </div>
                             ) : (
                                 <div className="limits-grid">
                                     {Object.entries(limits).map(([m, d]) => {
+                                        if (!d) return null;
                                         const isCurrentMonth = new Date().getMonth() + 1 === parseInt(m);
-                                        const isExceeded = results && results.avgDaily > d.gunluk;
-                                        const usagePercent = results ? (results.avgDaily / d.gunluk) * 100 : 0;
+                                        const isExceeded = results && results.avgDaily > (d.gunluk || 0);
+                                        const usagePercent = results ? (results.avgDaily / (d.gunluk || 1)) * 100 : 0;
                                         return (
                                             <div key={m} className={`month-card ${isCurrentMonth ? 'is-current' : ''} ${results ? (isExceeded ? 'is-exceeded' : 'is-ok') : ''}`}>
                                                 <div className="month-card-header">
-                                                    <span className="month-name">{d.ay}</span>
+                                                    <span className="month-name">{d.ay || ''}</span>
                                                     {isCurrentMonth && <span className="current-badge">BU AY</span>}
                                                 </div>
                                                 <div className="month-card-stats">
                                                     <div className="card-stat-row">
                                                         <span className="card-stat-label">GÜNLÜK LİMİT</span>
-                                                        <span className="card-stat-value">{d.gunluk} m³/gün</span>
+                                                        <span className="card-stat-value">{(d.gunluk || 0)} m³/gün</span>
                                                     </div>
                                                     <div className="month-card-prices">
-                                                        <span className="card-price-tag">K1: {parseFloat(d.k1).toFixed(2)}</span>
-                                                        <span className="card-price-tag">K2: {parseFloat(d.k2).toFixed(2)}</span>
+                                                        <span className="card-price-tag">K1: {parseFloat(d.k1 || 0).toFixed(2)}</span>
+                                                        <span className="card-price-tag">K2: {parseFloat(d.k2 || 0).toFixed(2)}</span>
                                                     </div>
                                                 </div>
                                                 {results && (
