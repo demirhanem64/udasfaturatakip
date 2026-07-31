@@ -19,6 +19,7 @@ import {
   addDays
 } from 'date-fns';
 import { AYLIK_LIMITLER, KDV_ORANI, AY_ISIMLERI } from './constants';
+import { fetchPricesFromGoogleSheets } from './utils';
 
 function App() {
   const [limits, setLimits] = useState(() => {
@@ -43,6 +44,33 @@ function App() {
 
   useEffect(() => { localStorage.setItem('udas_limits_v3', JSON.stringify(limits)); }, [limits]);
   useEffect(() => { localStorage.setItem('udas_inputs_v3', JSON.stringify(inputs)); }, [inputs]);
+
+  // Google Sheets Fetching on Mount
+  useEffect(() => {
+    const loadGoogleSheetsData = async () => {
+      const sheetsData = await fetchPricesFromGoogleSheets();
+      if (sheetsData) {
+        const { monthlyPrices } = sheetsData;
+        
+        // Limitler objesini güncelle (sadece aylık k1 ve k2 fiyatlarını değiştirerek)
+        setLimits(prevLimits => {
+          const newLimits = { ...prevLimits };
+          Object.keys(monthlyPrices).forEach(monthIndex => {
+            if (newLimits[monthIndex]) {
+              newLimits[monthIndex] = {
+                ...newLimits[monthIndex],
+                k1: monthlyPrices[monthIndex].k1,
+                k2: monthlyPrices[monthIndex].k2
+              };
+            }
+          });
+          return newLimits;
+        });
+      }
+    };
+    
+    loadGoogleSheetsData();
+  }, []);
 
   const results = useMemo(() => {
     if (!inputs.startDate || !inputs.endDate || inputs.startIndex === '' || inputs.endIndex === '') return null;

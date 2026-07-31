@@ -12,7 +12,6 @@
     <script src="https://unpkg.com/react@18/umd/react.production.min.js"></script>
     <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js"></script>
     <script src="https://unpkg.com/@babel/standalone@7/babel.min.js"></script>
-    <script src="https://unpkg.com/papaparse@5.4.1/papaparse.min.js"></script>
 
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
@@ -136,67 +135,6 @@
 
             useEffect(() => { localStorage.setItem('udas_limits_v3', JSON.stringify(limits)); }, [limits]);
             useEffect(() => { localStorage.setItem('udas_inputs_v3', JSON.stringify(inputs)); }, [inputs]);
-
-            // Google Sheets Fetching on Mount
-            useEffect(() => {
-                const loadGoogleSheetsData = async () => {
-                    const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/1HYscvB1agBcWfQg_TavIecQ8kKfz5KOk5GTMvdtNHaU/export?format=csv";
-                    const AY_MAP = {
-                        'ocak': 1, 'şubat': 2, 'mart': 3, 'nisan': 4, 'mayıs': 5, 'haziran': 6,
-                        'temmuz': 7, 'ağustos': 8, 'eylül': 9, 'ekim': 10, 'kasım': 11, 'aralık': 12
-                    };
-
-                    try {
-                        const response = await fetch(GOOGLE_SHEETS_CSV_URL);
-                        if (!response.ok) throw new Error("HTTP hata!");
-                        const csvText = await response.text();
-                        
-                        Papa.parse(csvText, {
-                            header: true,
-                            skipEmptyLines: true,
-                            complete: function(results) {
-                                const data = results.data;
-                                const monthlyPrices = {};
-                                
-                                data.forEach(row => {
-                                    const tarih = (row['TARİH'] || '').trim().toLowerCase();
-                                    const k1Str = (row['KADEME 1'] || '').trim();
-                                    const k2Str = (row['KADEME 2'] || '').trim();
-                                    
-                                    if (!tarih) return;
-
-                                    const k1 = k1Str ? parseFloat(k1Str.replace(',', '.')) : null;
-                                    const k2 = k2Str ? parseFloat(k2Str.replace(',', '.')) : null;
-                                    const ayIsmi = tarih.split(' ')[0];
-                                    const ayIndex = AY_MAP[ayIsmi];
-
-                                    if (ayIndex && k1 !== null && k2 !== null && !isNaN(k1) && !isNaN(k2)) {
-                                        monthlyPrices[ayIndex] = { k1, k2 };
-                                    }
-                                });
-
-                                setLimits(prevLimits => {
-                                    const newLimits = { ...prevLimits };
-                                    Object.keys(monthlyPrices).forEach(monthIndex => {
-                                        if (newLimits[monthIndex]) {
-                                            newLimits[monthIndex] = {
-                                                ...newLimits[monthIndex],
-                                                k1: monthlyPrices[monthIndex].k1,
-                                                k2: monthlyPrices[monthIndex].k2
-                                            };
-                                        }
-                                    });
-                                    return newLimits;
-                                });
-                            }
-                        });
-                    } catch (error) {
-                        console.error("Google Sheets'ten fiyatlar çekilirken hata oluştu:", error);
-                    }
-                };
-                
-                loadGoogleSheetsData();
-            }, []);
 
             const results = useMemo(() => {
                 if (!inputs.startDate || !inputs.endDate || inputs.startIndex === '' || inputs.endIndex === '') return null;
