@@ -124,11 +124,11 @@
                 try {
                     const saved = localStorage.getItem('udas_inputs_v3');
                     const today = new Date().toISOString().split('T')[0];
-                    return saved ? JSON.parse(saved) : { startDate: today, startIndex: '', endDate: today, endIndex: '' };
+                    return saved ? JSON.parse(saved) : { startDate: today, startIndex: '', endDate: today, endIndex: '', totalM3: '', isManualTotal: false };
                 } catch (e) {
                     console.error("Error parsing inputs from localStorage:", e);
                     const today = new Date().toISOString().split('T')[0];
-                    return { startDate: today, startIndex: '', endDate: today, endIndex: '' };
+                    return { startDate: today, startIndex: '', endDate: today, endIndex: '', totalM3: '', isManualTotal: false };
                 }
             });
 
@@ -198,15 +198,29 @@
                 loadGoogleSheetsData();
             }, []);
 
-            const results = useMemo(() => {
-                if (!inputs.startDate || !inputs.endDate || inputs.startIndex === '' || inputs.endIndex === '') return null;
+            const currentTotalDays = useMemo(() => {
+                if (!inputs.startDate || !inputs.endDate) return 0;
                 const start = new Date(inputs.startDate);
                 const end = new Date(inputs.endDate);
-                const totalDays = Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
-                if (totalDays <= 0) return null;
-                const totalM3 = parseFloat(inputs.endIndex) - parseFloat(inputs.startIndex);
+                return Math.floor((end - start) / (1000 * 60 * 60 * 24)) + 1;
+            }, [inputs.startDate, inputs.endDate]);
+
+            const results = useMemo(() => {
+                if (currentTotalDays <= 0) return null;
+                
+                let totalM3 = 0;
+                if (inputs.isManualTotal && inputs.totalM3 !== '') {
+                    totalM3 = parseFloat(inputs.totalM3);
+                } else {
+                    if (inputs.startIndex === '' || inputs.endIndex === '') return null;
+                    totalM3 = parseFloat(inputs.endIndex) - parseFloat(inputs.startIndex);
+                }
+
                 if (isNaN(totalM3) || totalM3 < 0) return null;
-                const avgDaily = totalM3 / totalDays;
+                const avgDaily = totalM3 / currentTotalDays;
+                
+                const start = new Date(inputs.startDate);
+                const end = new Date(inputs.endDate);
 
                 const breakdown = {};
                 for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
@@ -234,7 +248,7 @@
 
                 const subTotal = detail.reduce((acc, c) => acc + c.cost, 0);
                 const kdv = subTotal * 0.20;
-                return { totalDays, totalM3, avgDaily, detail, subTotal, kdv, grandTotal: subTotal + kdv };
+                return { totalDays: currentTotalDays, totalM3, avgDaily, detail, subTotal, kdv, grandTotal: subTotal + kdv };
             }, [inputs, limits]);
 
             const handleLimitChange = (m, field, val) => {
@@ -258,7 +272,7 @@
                                 </div>
                                 <div className="form-group">
                                     <label>İlk Endeks (m³)</label>
-                                    <input type="number" value={inputs.startIndex} onChange={e => setInputs({...inputs, startIndex: e.target.value})} placeholder="0" />
+                                    <input type="number" value={inputs.startIndex} onChange={e => setInputs({...inputs, startIndex: e.target.value, isManualTotal: false})} placeholder="0" />
                                 </div>
                                 <div className="form-group">
                                     <label>Son Okuma Tarihi</label>
@@ -266,15 +280,42 @@
                                 </div>
                                 <div className="form-group">
                                     <label>Son Endeks (m³)</label>
-                                    <input type="number" value={inputs.endIndex} onChange={e => setInputs({...inputs, endIndex: e.target.value})} placeholder="0" />
+                                    <input type="number" value={inputs.endIndex} onChange={e => setInputs({...inputs, endIndex: e.target.value, isManualTotal: false})} placeholder="0" />
                                 </div>
                             </div>
 
-                            {results && (
+                            {currentTotalDays > 0 && (
                                 <div className="stat-grid">
-                                    <div className="stat-box"><div style={{fontSize:'10px'}}>GÜN</div><div style={{fontSize:'20px', fontWeight:'700', color:'var(--accent-blue)'}}>{results.totalDays}</div></div>
-                                    <div className="stat-box"><div style={{fontSize:'10px'}}>TOPLAM m³</div><div style={{fontSize:'20px', fontWeight:'700', color:'var(--accent-green)'}}>{results.totalM3.toFixed(2)}</div></div>
-                                    <div className="stat-box"><div style={{fontSize:'10px'}}>GÜNLÜK ORT</div><div style={{fontSize:'20px', fontWeight:'700', color:'var(--accent-orange)'}}>{results.avgDaily.toFixed(3)}</div></div>
+                                    <div className="stat-box">
+                                        <div style={{fontSize:'10px'}}>GÜN</div>
+                                        <div style={{fontSize:'20px', fontWeight:'700', color:'var(--accent-blue)'}}>{currentTotalDays}</div>
+                                    </div>
+                                    <div className="stat-box">
+                                        <div style={{fontSize:'10px'}}>TOPLAM m³</div>
+                                        <input 
+                                            type="number"
+                                            value={inputs.isManualTotal ? inputs.totalM3 : (results ? results.totalM3.toFixed(2) : '')}
+                                            onChange={e => setInputs({...inputs, totalM3: e.target.value, isManualTotal: true})}
+                                            placeholder="0"
+                                            style={{
+                                                width: '100%',
+                                                background: 'rgba(255,255,255,0.05)',
+                                                border: '1px solid rgba(255,255,255,0.2)',
+                                                borderRadius: '6px',
+                                                color: 'var(--accent-green)',
+                                                fontSize: '20px',
+                                                fontWeight: '700',
+                                                textAlign: 'center',
+                                                padding: '2px',
+                                                marginTop: '4px',
+                                                outline: 'none'
+                                            }}
+                                        />
+                                    </div>
+                                    <div className="stat-box">
+                                        <div style={{fontSize:'10px'}}>GÜNLÜK ORT</div>
+                                        <div style={{fontSize:'20px', fontWeight:'700', color:'var(--accent-orange)'}}>{results ? results.avgDaily.toFixed(3) : '-'}</div>
+                                    </div>
                                 </div>
                             )}
                         </div>
