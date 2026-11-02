@@ -2,15 +2,49 @@ import Papa from 'papaparse';
 
 export const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/1HYscvB1agBcWfQg_TavIecQ8kKfz5KOk5GTMvdtNHaU/export?format=csv";
 
-// Ay isimlerini App.jsx'teki indekslere çevirmek için harita
-const AY_MAP = {
-  'ocak': 1, 'şubat': 2, 'mart': 3, 'nisan': 4, 'mayıs': 5, 'haziran': 6,
-  'temmuz': 7, 'ağustos': 8, 'eylül': 9, 'ekim': 10, 'kasım': 11, 'aralık': 12
+// Türkçe karakterleri ve aksanları normalize eden sağlam fonksiyon
+const normalizeText = (text = '') => {
+  return String(text)
+    .replace(/İ/g, 'i')
+    .replace(/I/g, 'ı')
+    .replace(/ı/g, 'i')
+    .replace(/ş/g, 's')
+    .replace(/Ş/g, 's')
+    .replace(/ğ/g, 'g')
+    .replace(/Ğ/g, 'g')
+    .replace(/ü/g, 'u')
+    .replace(/Ü/g, 'u')
+    .replace(/ö/g, 'o')
+    .replace(/Ö/g, 'o')
+    .replace(/ç/g, 'c')
+    .replace(/Ç/g, 'c')
+    .toLowerCase()
+    .replace(/[\s_\-]/g, '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '');
+};
+
+const MONTH_INDEX_MAP = {
+  'ocak': 1, 'subat': 2, 'mart': 3, 'nisan': 4, 'mayis': 5, 'haziran': 6,
+  'temmuz': 7, 'agustos': 8, 'eylul': 9, 'ekim': 10, 'kasim': 11, 'aralik': 12
+};
+
+const parseNumeric = (val) => {
+  if (val === undefined || val === null) return null;
+  const str = String(val).trim().replace(',', '.');
+  if (!str) return null;
+  const num = parseFloat(str);
+  return isNaN(num) ? null : num;
 };
 
 export const fetchPricesFromGoogleSheets = async () => {
   try {
-    const response = await fetch(GOOGLE_SHEETS_CSV_URL);
+    const cacheBuster = `&_t=${Date.now()}`;
+    const url = GOOGLE_SHEETS_CSV_URL.includes('?') 
+      ? `${GOOGLE_SHEETS_CSV_URL}${cacheBuster}` 
+      : `${GOOGLE_SHEETS_CSV_URL}?${cacheBuster.substring(1)}`;
+
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error(`HTTP hata! durum: ${response.status}`);
     }
@@ -21,35 +55,53 @@ export const fetchPricesFromGoogleSheets = async () => {
         header: true,
         skipEmptyLines: true,
         complete: function(results) {
-          const data = results.data;
-          const monthlyPrices = {};
+          const monthlyData = {};
           let latestK1 = null;
           let latestK2 = null;
 
-          data.forEach(row => {
-            const tarih = (row['TARİH'] || '').trim().toLowerCase();
-            const k1Str = (row['KADEME 1'] || '').trim();
-            const k2Str = (row['KADEME 2'] || '').trim();
-            
-            if (!tarih) return;
+          results.data.forEach(row => {
+            let tarihRaw = '', k1Raw = '', k2Raw = '', gunlukRaw = '', aylikRaw = '';
 
-            // Fiyattaki virgülü noktaya çevirip parse edelim
-            const k1 = k1Str ? parseFloat(k1Str.replace(',', '.')) : null;
-            const k2 = k2Str ? parseFloat(k2Str.replace(',', '.')) : null;
-
-            // Ay ismini ayrıştır (örn: "Ocak 2026" -> "ocak")
-            const ayIsmi = tarih.split(' ')[0];
-            const ayIndex = AY_MAP[ayIsmi];
-
-            if (ayIndex && k1 !== null && k2 !== null && !isNaN(k1) && !isNaN(k2)) {
-              monthlyPrices[ayIndex] = { k1, k2 };
-              latestK1 = k1;
-              latestK2 = k2;
+            for (const [key, val] of Object.entries(row)) {
+              const k = normalizeText(key);
+              if (k.includes('tarih') || k.includes('ay') || k.includes('donem')) {
+                tarihRaw = val;
+              } else if (k.includes('kademe1') || k === 'k1') {
+                k1Raw = val;
+              } else if (k.includes('kademe2') || k === 'k2') {
+                k2Raw = val;
+              } else if (k.includes('gunluk')) {
+                gunlukRaw = val;
+              } else if (k.includes('aylik')) {
+                aylikRaw = val;
+              }
             }
+
+            if (!tarihRaw) return;
+
+            const rawMonth = normalizeText(tarihRaw.split(/[\s\-_/]/)[0]);
+            const monthIdx = MONTH_INDEX_MAP[rawMonth];
+            if (!monthIdx) return;
+
+            const k1 = parseNumeric(k1Raw);
+            const k2 = parseNumeric(k2Raw);
+            const gunluk = parseNumeric(gunlukRaw);
+            const aylik = parseNumeric(aylikRaw);
+
+            monthlyData[monthIdx] = {
+              ...(k1 !== null ? { k1 } : {}),
+              ...(k2 !== null ? { k2 } : {}),
+              ...(gunluk !== null ? { gunluk } : {}),
+              ...(aylik !== null ? { aylik } : (gunluk !== null ? { aylik: parseFloat((gunluk * 30).toFixed(2)) } : {}))
+            };
+
+            if (k1 !== null) latestK1 = k1;
+            if (k2 !== null) latestK2 = k2;
           });
 
           resolve({
-            monthlyPrices,
+            monthlyData,
+            monthlyPrices: monthlyData, // Geriye dönük uyumluluk
             latestPrices: { kademe1: latestK1, kademe2: latestK2 }
           });
         },

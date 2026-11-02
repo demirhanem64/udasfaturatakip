@@ -52,15 +52,18 @@ function App() {
       if (sheetsData) {
         const { monthlyPrices } = sheetsData;
         
-        // Limitler objesini güncelle (sadece aylık k1 ve k2 fiyatlarını değiştirerek)
+        // Limitler objesini güncelle (aylık k1, k2 ve günlük limitleri aktar)
         setLimits(prevLimits => {
           const newLimits = { ...prevLimits };
           Object.keys(monthlyPrices).forEach(monthIndex => {
             if (newLimits[monthIndex]) {
+              const item = monthlyPrices[monthIndex];
               newLimits[monthIndex] = {
                 ...newLimits[monthIndex],
-                k1: monthlyPrices[monthIndex].k1,
-                k2: monthlyPrices[monthIndex].k2
+                ...(item.k1 !== undefined ? { k1: item.k1 } : {}),
+                ...(item.k2 !== undefined ? { k2: item.k2 } : {}),
+                ...(item.gunluk !== undefined ? { gunluk: item.gunluk } : {}),
+                ...(item.aylik !== undefined ? { aylik: item.aylik } : {})
               };
             }
           });
