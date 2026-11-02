@@ -26,6 +26,7 @@
         .app-wrapper { max-width: 900px; margin: 0 auto; padding: 24px 16px; }
         .header { text-align: center; padding: 30px 0; }
         .header h1 { font-size: 32px; background: linear-gradient(135deg, #fff, var(--accent-blue)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+        .sync-badge { display: inline-flex; align-items: center; gap: 6px; font-size: 12px; background: rgba(99,179,237,0.1); border: 1px solid rgba(99,179,237,0.3); color: var(--accent-blue); padding: 4px 12px; border-radius: 20px; margin-top: 10px; }
         .card { background: var(--bg-card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 24px; margin-bottom: 20px; backdrop-filter: blur(10px); }
         .form-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
         @media (max-width: 600px) { .form-grid { grid-template-columns: 1fr; } }
@@ -38,8 +39,8 @@
         .kademe-row { display: flex; align-items: center; gap: 15px; padding: 15px; border-radius: 12px; margin-bottom: 10px; background: rgba(255,255,255,0.03); }
         .k1 { border-left: 4px solid var(--accent-green); }
         .k2 { border-left: 4px solid var(--accent-orange); }
-        .total-box { background: linear-gradient(135deg, rgba(99,179,237,0.1), rgba(0,0,0,0.3)); padding: 30px; border-radius: 16px; text-align: center; border: 1px solid var(--accent-blue); }
-        /* Redesigned Monthly Cards */
+        .total-box { background: linear-gradient(135deg, rgba(99,179,237,0.1), rgba(0,0,0,0.3)); padding: 26px; border-radius: 16px; text-align: center; border: 1px solid var(--accent-blue); }
+        
         .limits-grid {
             display: grid;
             grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
@@ -83,7 +84,10 @@
         .usage-bar-fill.ok { background: var(--accent-green); }
         .usage-bar-fill.exceeded { background: var(--accent-orange); }
 
-        .btn-edit { background: var(--accent-blue); color: #000; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; }
+        .btn-edit { background: var(--accent-blue); color: #000; border: none; padding: 8px 16px; border-radius: 6px; cursor: pointer; font-weight: 600; transition: all 0.2s ease; }
+        .btn-edit:hover { opacity: 0.9; }
+        .btn-sync { background: rgba(99,179,237,0.15); color: var(--accent-blue); border: 1px solid var(--accent-blue); padding: 8px 14px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 12px; display: inline-flex; align-items: center; gap: 6px; transition: all 0.2s ease; }
+        .btn-sync:hover { background: rgba(99,179,237,0.25); }
     </style>
 </head>
 <body>
@@ -93,26 +97,60 @@
         const { useState, useEffect, useMemo } = React;
 
         const AYLIK_LIMITLER = {
-            1:  { ay: 'Ocak',    gunluk: 9.43,  k1: 10.600615, k2: 20.828826 },
-            2:  { ay: 'Şubat',   gunluk: 10.61, k1: 10.620000, k2: 20.828826 },
-            3:  { ay: 'Mart',    gunluk: 8.15,  k1: 10.750000, k2: 20.983661 },
-            4:  { ay: 'Nisan',   gunluk: 6.64,  k1: 10.830000, k2: 21.067632 },
-            5:  { ay: 'Mayıs',   gunluk: 3.43,  k1: 13.740000, k2: 21.124296 },
-            6:  { ay: 'Haziran', gunluk: 1.44,  k1: 13.740000, k2: 21.124296 },
-            7:  { ay: 'Temmuz',  gunluk: 0.83,  k1: 13.740000, k2: 21.124296 },
-            8:  { ay: 'Ağustos', gunluk: 0.69,  k1: 13.740000, k2: 21.124296 },
-            9:  { ay: 'Eylül',   gunluk: 0.72,  k1: 13.740000, k2: 21.124296 },
-            10: { ay: 'Ekim',    gunluk: 1.24,  k1: 13.740000, k2: 21.124296 },
-            11: { ay: 'Kasım',   gunluk: 3.60,  k1: 13.740000, k2: 21.124296 },
-            12: { ay: 'Aralık',  gunluk: 6.94,  k1: 13.740000, k2: 21.124296 },
+            1:  { ay: 'Ocak',    gunluk: 9.43,  k1: 10.60, k2: 20.83 },
+            2:  { ay: 'Şubat',   gunluk: 10.61, k1: 10.62, k2: 20.83 },
+            3:  { ay: 'Mart',    gunluk: 0.15,  k1: 10.75, k2: 20.83 },
+            4:  { ay: 'Nisan',   gunluk: 6.64,  k1: 13.69, k2: 21.06 },
+            5:  { ay: 'Mayıs',   gunluk: 3.43,  k1: 13.74, k2: 21.12 },
+            6:  { ay: 'Haziran', gunluk: 1.44,  k1: 13.87, k2: 21.24 },
+            7:  { ay: 'Temmuz',  gunluk: 0.83,  k1: 13.92, k2: 21.30 },
+            8:  { ay: 'Ağustos', gunluk: 0.69,  k1: 13.95, k2: 21.33 },
+            9:  { ay: 'Eylül',   gunluk: 0.72,  k1: 14.01, k2: 21.38 },
+            10: { ay: 'Ekim',    gunluk: 1.24,  k1: 14.07, k2: 21.44 },
+            11: { ay: 'Kasım',   gunluk: 8.34,  k1: 14.07, k2: 21.44 },
+            12: { ay: 'Aralık',  gunluk: 12.60, k1: 14.07, k2: 21.44 },
         };
 
         const AY_ISIMLERI = ['', 'Ocak', 'Şubat', 'Mart', 'Nisan', 'Mayıs', 'Haziran', 'Temmuz', 'Ağustos', 'Eylül', 'Ekim', 'Kasım', 'Aralık'];
 
+        const normalizeText = (text = '') => {
+            return String(text)
+                .replace(/İ/g, 'i')
+                .replace(/I/g, 'ı')
+                .replace(/ı/g, 'i')
+                .replace(/ş/g, 's')
+                .replace(/Ş/g, 's')
+                .replace(/ğ/g, 'g')
+                .replace(/Ğ/g, 'g')
+                .replace(/ü/g, 'u')
+                .replace(/Ü/g, 'u')
+                .replace(/ö/g, 'o')
+                .replace(/Ö/g, 'o')
+                .replace(/ç/g, 'c')
+                .replace(/Ç/g, 'c')
+                .toLowerCase()
+                .replace(/[\s_\-]/g, '')
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '');
+        };
+
+        const MONTH_INDEX_MAP = {
+            'ocak': 1, 'subat': 2, 'mart': 3, 'nisan': 4, 'mayis': 5, 'haziran': 6,
+            'temmuz': 7, 'agustos': 8, 'eylul': 9, 'ekim': 10, 'kasim': 11, 'aralik': 12
+        };
+
+        const parseNumeric = (val) => {
+            if (val === undefined || val === null) return null;
+            const str = String(val).trim().replace(',', '.');
+            if (!str) return null;
+            const num = parseFloat(str);
+            return isNaN(num) ? null : num;
+        };
+
         function App() {
             const [limits, setLimits] = useState(() => {
                 try {
-                    const saved = localStorage.getItem('udas_limits_v3');
+                    const saved = localStorage.getItem('udas_limits_v4');
                     return saved ? JSON.parse(saved) : AYLIK_LIMITLER;
                 } catch (e) {
                     console.error("Error parsing limits from localStorage:", e);
@@ -122,7 +160,7 @@
 
             const [inputs, setInputs] = useState(() => {
                 try {
-                    const saved = localStorage.getItem('udas_inputs_v3');
+                    const saved = localStorage.getItem('udas_inputs_v4');
                     const today = new Date().toISOString().split('T')[0];
                     return saved ? JSON.parse(saved) : { startDate: today, startIndex: '', endDate: today, endIndex: '', totalM3: '', isManualTotal: false };
                 } catch (e) {
@@ -133,68 +171,85 @@
             });
 
             const [isEditing, setIsEditing] = useState(false);
+            const [syncStatus, setSyncStatus] = useState('idle'); // idle | loading | success | error
 
-            useEffect(() => { localStorage.setItem('udas_limits_v3', JSON.stringify(limits)); }, [limits]);
-            useEffect(() => { localStorage.setItem('udas_inputs_v3', JSON.stringify(inputs)); }, [inputs]);
+            useEffect(() => { localStorage.setItem('udas_limits_v4', JSON.stringify(limits)); }, [limits]);
+            useEffect(() => { localStorage.setItem('udas_inputs_v4', JSON.stringify(inputs)); }, [inputs]);
+
+            const loadGoogleSheetsData = async () => {
+                setSyncStatus('loading');
+                const GOOGLE_SHEETS_CSV_URL = `https://docs.google.com/spreadsheets/d/1HYscvB1agBcWfQg_TavIecQ8kKfz5KOk5GTMvdtNHaU/export?format=csv&_t=${Date.now()}`;
+
+                try {
+                    const response = await fetch(GOOGLE_SHEETS_CSV_URL);
+                    if (!response.ok) throw new Error("HTTP hata!");
+                    const csvText = await response.text();
+                    
+                    Papa.parse(csvText, {
+                        header: true,
+                        skipEmptyLines: true,
+                        complete: function(results) {
+                            const monthlyData = {};
+                            
+                            results.data.forEach(row => {
+                                let tarihRaw = '', k1Raw = '', k2Raw = '', gunlukRaw = '';
+
+                                for (const [key, val] of Object.entries(row)) {
+                                    const k = normalizeText(key);
+                                    if (k.includes('tarih') || k.includes('ay') || k.includes('donem')) {
+                                        tarihRaw = val;
+                                    } else if (k.includes('kademe1') || k === 'k1') {
+                                        k1Raw = val;
+                                    } else if (k.includes('kademe2') || k === 'k2') {
+                                        k2Raw = val;
+                                    } else if (k.includes('gunluk')) {
+                                        gunlukRaw = val;
+                                    }
+                                }
+
+                                if (!tarihRaw) return;
+
+                                const rawMonth = normalizeText(tarihRaw.split(/[\s\-_/]/)[0]);
+                                const monthIdx = MONTH_INDEX_MAP[rawMonth];
+                                if (!monthIdx) return;
+
+                                const k1 = parseNumeric(k1Raw);
+                                const k2 = parseNumeric(k2Raw);
+                                const gunluk = parseNumeric(gunlukRaw);
+
+                                monthlyData[monthIdx] = {
+                                    ...(k1 !== null ? { k1 } : {}),
+                                    ...(k2 !== null ? { k2 } : {}),
+                                    ...(gunluk !== null ? { gunluk } : {})
+                                };
+                            });
+
+                            setLimits(prevLimits => {
+                                const newLimits = { ...prevLimits };
+                                Object.keys(monthlyData).forEach(monthIndex => {
+                                    if (newLimits[monthIndex]) {
+                                        const item = monthlyData[monthIndex];
+                                        newLimits[monthIndex] = {
+                                            ...newLimits[monthIndex],
+                                            ...(item.k1 !== undefined ? { k1: item.k1 } : {}),
+                                            ...(item.k2 !== undefined ? { k2: item.k2 } : {}),
+                                            ...(item.gunluk !== undefined ? { gunluk: item.gunluk } : {})
+                                        };
+                                    }
+                                });
+                                return newLimits;
+                            });
+                            setSyncStatus('success');
+                        }
+                    });
+                } catch (error) {
+                    console.error("Google Sheets'ten fiyatlar çekilirken hata oluştu:", error);
+                    setSyncStatus('error');
+                }
+            };
 
             // Google Sheets Fetching on Mount
             useEffect(() => {
-                const loadGoogleSheetsData = async () => {
-                    const GOOGLE_SHEETS_CSV_URL = "https://docs.google.com/spreadsheets/d/1HYscvB1agBcWfQg_TavIecQ8kKfz5KOk5GTMvdtNHaU/export?format=csv";
-                    const AY_MAP = {
-                        'ocak': 1, 'şubat': 2, 'mart': 3, 'nisan': 4, 'mayıs': 5, 'haziran': 6,
-                        'temmuz': 7, 'ağustos': 8, 'eylül': 9, 'ekim': 10, 'kasım': 11, 'aralık': 12
-                    };
-
-                    try {
-                        const response = await fetch(GOOGLE_SHEETS_CSV_URL);
-                        if (!response.ok) throw new Error("HTTP hata!");
-                        const csvText = await response.text();
-                        
-                        Papa.parse(csvText, {
-                            header: true,
-                            skipEmptyLines: true,
-                            complete: function(results) {
-                                const data = results.data;
-                                const monthlyPrices = {};
-                                
-                                data.forEach(row => {
-                                    const tarih = (row['TARİH'] || '').trim().toLowerCase();
-                                    const k1Str = (row['KADEME 1'] || '').trim();
-                                    const k2Str = (row['KADEME 2'] || '').trim();
-                                    
-                                    if (!tarih) return;
-
-                                    const k1 = k1Str ? parseFloat(k1Str.replace(',', '.')) : null;
-                                    const k2 = k2Str ? parseFloat(k2Str.replace(',', '.')) : null;
-                                    const ayIsmi = tarih.split(' ')[0];
-                                    const ayIndex = AY_MAP[ayIsmi];
-
-                                    if (ayIndex && k1 !== null && k2 !== null && !isNaN(k1) && !isNaN(k2)) {
-                                        monthlyPrices[ayIndex] = { k1, k2 };
-                                    }
-                                });
-
-                                setLimits(prevLimits => {
-                                    const newLimits = { ...prevLimits };
-                                    Object.keys(monthlyPrices).forEach(monthIndex => {
-                                        if (newLimits[monthIndex]) {
-                                            newLimits[monthIndex] = {
-                                                ...newLimits[monthIndex],
-                                                k1: monthlyPrices[monthIndex].k1,
-                                                k2: monthlyPrices[monthIndex].k2
-                                            };
-                                        }
-                                    });
-                                    return newLimits;
-                                });
-                            }
-                        });
-                    } catch (error) {
-                        console.error("Google Sheets'ten fiyatlar çekilirken hata oluştu:", error);
-                    }
-                };
-                
                 loadGoogleSheetsData();
             }, []);
 
@@ -231,9 +286,10 @@
                 const detail = Object.entries(breakdown).map(([month, days]) => {
                     const mData = limits[month] || AYLIK_LIMITLER[month] || { gunluk: 0, k1: 0, k2: 0 };
                     const isAbove = avgDaily > (mData.gunluk || 0);
+                    // Google Sheets'ten gelen KDV hariç fiyat
                     const price = isAbove ? (mData.k2 || 0) : (mData.k1 || 0);
                     const consumption = avgDaily * days;
-                    const cost = consumption * price;
+                    const cost = consumption * price; // KDV hariç dönem bedeli
                     return { 
                         monthName: AY_ISIMLERI[month] || `Ay ${month}`, 
                         days, 
@@ -246,10 +302,11 @@
                     };
                 });
 
-                const subTotal = detail.reduce((acc, c) => acc + c.cost, 0);
-                const kdv = subTotal * 0.20;
-                return { totalDays: currentTotalDays, totalM3, avgDaily, detail, subTotal, kdv, grandTotal: subTotal + kdv };
-            }, [inputs, limits]);
+                const subTotal = detail.reduce((acc, c) => acc + c.cost, 0); // Matrah (KDV Hariç)
+                const kdv = subTotal * 0.20; // %20 KDV
+                const grandTotal = subTotal + kdv; // Toplam Fatura Bedeli
+                return { totalDays: currentTotalDays, totalM3, avgDaily, detail, subTotal, kdv, grandTotal };
+            }, [inputs, limits, currentTotalDays]);
 
             const handleLimitChange = (m, field, val) => {
                 setLimits(prev => ({ ...prev, [m]: { ...prev[m], [field]: parseFloat(val) || 0 } }));
@@ -260,6 +317,12 @@
                     <header className="header">
                         <h1>UDAŞ Fatura Takip</h1>
                         <p style={{color: 'var(--text-secondary)'}}>Kademeli Doğalgaz Faturası Hesaplama Sistemi</p>
+                        <div className="sync-badge">
+                            <span style={{color: syncStatus === 'error' ? '#f56565' : (syncStatus === 'loading' ? '#ecc94b' : '#48bb78')}}>●</span>
+                            {syncStatus === 'loading' ? 'Google E-Tablodan Veriler Çekiliyor...' : 
+                             syncStatus === 'error' ? 'E-Tabloya Bağlanılamadı (Varsayılanlar Yüklendi)' : 
+                             'Google E-Tablo ile Canlı Senkronize'}
+                        </div>
                     </header>
 
                     <main>
@@ -328,41 +391,64 @@
                                         <div style={{flex:1}}>
                                             <div style={{fontWeight:'600'}}>{item.monthName} Dönemi ({item.days} Gün)</div>
                                             <div style={{fontSize:'14px', color:'var(--text-secondary)', display:'flex', flexDirection:'column', gap:'8px', marginTop:'6px'}}>
-                                                <span style={{fontSize:'18px', fontWeight:'700', color:'var(--text-primary)'}}>{item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL</span>
-                                                <div className="tag-group" style={{marginTop:'4px'}}>
-                                                    <span className="tag" style={{background: item.isAbove ? 'rgba(246,173,85,0.2)' : 'rgba(104,211,145,0.2)', fontSize:'14px', padding:'4px 10px'}}>{item.isAbove ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}</span>
-                                                    <span className="tag limit-tag" style={{fontSize:'14px', padding:'4px 10px'}}>Günlük Limit: {item.dailyLimit.toFixed(2)} m³</span>
+                                                <span style={{fontSize:'18px', fontWeight:'700', color:'var(--text-primary)'}}>
+                                                    {item.consumption.toFixed(2)} m³ x {item.price.toFixed(4)} TL <small style={{fontSize:'12px', color:'var(--text-secondary)'}}>(KDV Hariç)</small>
+                                                </span>
+                                                <div className="tag-group" style={{marginTop:'4px', display:'flex', gap:'8px'}}>
+                                                    <span className="tag" style={{background: item.isAbove ? 'rgba(246,173,85,0.2)' : 'rgba(104,211,145,0.2)', color: item.isAbove ? 'var(--accent-orange)' : 'var(--accent-green)', borderRadius:'4px', fontSize:'13px', padding:'3px 8px'}}>
+                                                        {item.isAbove ? 'Limit Üstü (K2)' : 'Limit Altı (K1)'}
+                                                    </span>
+                                                    <span className="tag limit-tag" style={{background:'rgba(255,255,255,0.06)', borderRadius:'4px', fontSize:'13px', padding:'3px 8px'}}>
+                                                        Günlük Limit: {item.dailyLimit.toFixed(2)} m³
+                                                    </span>
                                                 </div>
                                             </div>
                                         </div>
-                                        <div style={{fontSize:'28px', fontWeight:'800', color:'var(--accent-blue)'}}>{item.cost.toLocaleString('tr-TR', {minimumFractionDigits:2})} TL</div>
+                                        <div style={{fontSize:'26px', fontWeight:'800', color:'var(--accent-blue)'}}>
+                                            {item.cost.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} TL
+                                        </div>
                                     </div>
                                 ))}
                                 <div className="total-box">
-                                    <div className="total-amount" style={{fontSize: '64px', fontWeight: '900'}}>{results.grandTotal.toLocaleString('tr-TR', {minimumFractionDigits:2})} TL</div>
-                                    <div style={{fontSize:'12px', color:'var(--text-secondary)'}}>KDV Dahil (Matrah: {results.subTotal.toLocaleString('tr-TR', {minimumFractionDigits:2})} TL)</div>
+                                    <div style={{fontSize:'13px', letterSpacing:'1px', color:'var(--accent-blue)', fontWeight:'700', marginBottom:'4px'}}>TAHMİNİ TOPLAM FATURA BEDELİ</div>
+                                    <div className="total-amount" style={{fontSize: '56px', fontWeight: '900', color: '#fff'}}>{results.grandTotal.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} TL</div>
+                                    <div style={{fontSize:'14px', color:'var(--text-secondary)', marginTop:'8px', display:'flex', justifyContent:'center', gap:'16px', flexWrap:'wrap'}}>
+                                        <span>Matrah (KDV Hariç): <strong style={{color:'var(--text-primary)'}}>{results.subTotal.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} TL</strong></span>
+                                        <span>Hesaplanan KDV (%20): <strong style={{color:'var(--accent-green)'}}>{results.kdv.toLocaleString('tr-TR', {minimumFractionDigits:2, maximumFractionDigits:2})} TL</strong></span>
+                                    </div>
                                 </div>
                             </div>
                         )}
 
                         <div className="card">
-                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px'}}>
-                                <h3>Aylık Limitler ve Fiyatlar</h3>
-                                <button className="btn-edit" onClick={() => setIsEditing(!isEditing)}>{isEditing ? 'Kaydet' : 'Düzenle'}</button>
+                            <div style={{display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:'15px', flexWrap:'wrap', gap:'10px'}}>
+                                <div>
+                                    <h3 style={{marginBottom:'2px'}}>Aylık Limitler ve Fiyatlar</h3>
+                                    <p style={{fontSize:'12px', color:'var(--text-secondary)'}}>Google E-Tablonuzdan canlı çekilen birim fiyatlar (KDV Hariç) ve günlük limitler</p>
+                                </div>
+                                <div style={{display:'flex', gap:'8px'}}>
+                                    <button className="btn-sync" onClick={loadGoogleSheetsData} title="Google E-Tablo'dan en güncel verileri tekrar çek">
+                                        ↻ E-Tablodan Çek
+                                    </button>
+                                    <button className="btn-edit" onClick={() => setIsEditing(!isEditing)}>
+                                        {isEditing ? 'Kaydet' : 'Düzenle'}
+                                    </button>
+                                </div>
                             </div>
+
                             {isEditing ? (
                                 <div style={{display:'grid', gridTemplateColumns:'repeat(auto-fill, minmax(200px, 1fr))', gap:'10px'}}>
                                     {Object.entries(limits).map(([m, d]) => {
                                         if (!d) return null;
                                         return (
-                                            <div key={m} style={{padding:'10px', background:'rgba(255,255,255,0.03)', borderRadius:'8px', border:'1px solid var(--border)'}}>
-                                                <div style={{fontWeight:'bold', color:'var(--accent-blue)'}}>{d.ay || ''}</div>
-                                                <div style={{fontSize:'10px', marginTop:'5px'}}>LİMİT</div>
-                                                <input type="number" value={d.gunluk || 0} onChange={e => handleLimitChange(m, 'gunluk', e.target.value)} />
-                                                <div style={{fontSize:'10px', marginTop:'5px'}}>K1 FİYAT (TL)</div>
-                                                <input type="number" value={d.k1 || 0} onChange={e => handleLimitChange(m, 'k1', e.target.value)} />
-                                                <div style={{fontSize:'10px', marginTop:'5px'}}>K2 FİYAT (TL)</div>
-                                                <input type="number" value={d.k2 || 0} onChange={e => handleLimitChange(m, 'k2', e.target.value)} />
+                                            <div key={m} style={{padding:'12px', background:'rgba(255,255,255,0.03)', borderRadius:'8px', border:'1px solid var(--border)'}}>
+                                                <div style={{fontWeight:'bold', color:'var(--accent-blue)', marginBottom:'8px'}}>{d.ay || ''}</div>
+                                                <div style={{fontSize:'11px', color:'var(--text-secondary)', marginBottom:'3px'}}>GÜNLÜK LİMİT (m³)</div>
+                                                <input type="number" step="0.01" value={d.gunluk || 0} onChange={e => handleLimitChange(m, 'gunluk', e.target.value)} style={{marginBottom:'8px'}} />
+                                                <div style={{fontSize:'11px', color:'var(--text-secondary)', marginBottom:'3px'}}>K1 FİYAT (TL - KDV Hariç)</div>
+                                                <input type="number" step="0.0001" value={d.k1 || 0} onChange={e => handleLimitChange(m, 'k1', e.target.value)} style={{marginBottom:'8px'}} />
+                                                <div style={{fontSize:'11px', color:'var(--text-secondary)', marginBottom:'3px'}}>K2 FİYAT (TL - KDV Hariç)</div>
+                                                <input type="number" step="0.0001" value={d.k2 || 0} onChange={e => handleLimitChange(m, 'k2', e.target.value)} />
                                             </div>
                                         );
                                     })}
@@ -386,8 +472,8 @@
                                                         <span className="card-stat-value">{(d.gunluk || 0)} m³/gün</span>
                                                     </div>
                                                     <div className="month-card-prices">
-                                                        <span className="card-price-tag">K1: {parseFloat(d.k1 || 0).toFixed(2)}</span>
-                                                        <span className="card-price-tag">K2: {parseFloat(d.k2 || 0).toFixed(2)}</span>
+                                                        <span className="card-price-tag">K1: {parseFloat(d.k1 || 0).toFixed(2)} TL</span>
+                                                        <span className="card-price-tag">K2: {parseFloat(d.k2 || 0).toFixed(2)} TL</span>
                                                     </div>
                                                 </div>
                                                 {results && (
